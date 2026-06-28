@@ -1,0 +1,19 @@
+# Python / Backend
+Backend/.venv/
+Backend/__pycache__/
+Backend/**/__pycache__/
+*.pyc
+Backend/*.db
+Backend/storylore_v2.db
+
+# Node / Frontend
+Frontend/node_modules/
+Frontend/dist/
+
+# Середовища та секрети
+.env
+*.env
+
+# IDE
+.idea/
+.vscode/
