@@ -1,14 +1,22 @@
 import { useState } from 'react'
-import { ChevronDown, Loader2, UserCircle } from 'lucide-react'
+import { ChevronDown, Loader2, UserCircle, Search, Sun, Moon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useProject } from '../../context/ProjectContext'
 import { useAuth } from '../../context/AuthContext'
+import { useTheme } from '../../context/ThemeContext'
 import InkStroke from './InkStroke'
 
 export default function Header() {
   const { projects, activeProject, setActiveProjectId, isLoading, error } = useProject()
   const { user, isGuest } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false)
+
+  // НОВЕ: відкриває глобальний пошук тим самим способом, що й Ctrl+K —
+  // SearchModal слухає це штучно згенероване сполучення клавіш
+  const openSearch = () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+  }
 
   return (
     <header className="flex h-20 items-center justify-between border-b border-ink-500 bg-ink-900 px-8">
@@ -72,8 +80,29 @@ export default function Header() {
         )}
       </div>
 
-      {/* Права частина — профіль */}
-      <div>
+      {/* Права частина — пошук + тема + профіль */}
+      <div className="flex items-center gap-3">
+        {/* НОВЕ: тумблер теми */}
+        <button
+          onClick={toggleTheme}
+          aria-label="Перемкнути тему"
+          className="flex items-center justify-center rounded-md border border-ink-500 p-2 text-parchment-dim transition-colors hover:border-amber-ink hover:text-amber-soft"
+        >
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+
+        {/* НОВЕ: видима кнопка глобального пошуку */}
+        <button
+          onClick={openSearch}
+          className="flex items-center gap-2 rounded-md border border-ink-500 px-3 py-1.5 text-sm text-parchment-dim transition-colors hover:border-amber-ink hover:text-amber-soft"
+        >
+          <Search size={15} />
+          <span className="hidden sm:inline">Пошук</span>
+          <kbd className="hidden rounded border border-ink-500 px-1.5 py-0.5 text-xs text-parchment-dim/60 sm:inline">
+            Ctrl+K
+          </kbd>
+        </button>
+
         {isGuest ? (
           <Link
             to="/login"

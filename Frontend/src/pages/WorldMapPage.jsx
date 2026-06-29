@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Loader2, Trash2, X, Link2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useProject } from '../context/ProjectContext'
@@ -234,6 +235,8 @@ function RelationshipDetailPanel({ relationship, sourceName, targetName, onClose
 // ── Головна сторінка ──────────────────────────────────────────────────────────
 export default function WorldMapPage() {
   const { activeProjectId } = useProject()
+  // НОВЕ: підтримка глобального пошуку
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [locations, setLocations] = useState([])
   const [relationships, setRelationships] = useState([])
@@ -275,6 +278,19 @@ export default function WorldMapPage() {
   }, [activeProjectId])
 
   useEffect(() => { loadAll() }, [loadAll])
+
+  // НОВЕ: відкриття конкретної локації з глобального пошуку (?focus=<id>)
+  useEffect(() => {
+    const focusId = searchParams.get('focus')
+    if (!focusId || locations.length === 0) return
+    const target = locations.find((l) => String(l.id) === focusId)
+    if (target) setSelectedLocation(target)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('focus')
+      return next
+    }, { replace: true })
+  }, [searchParams, locations]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const findLocationName = (id) => locations.find((l) => l.id === id)?.name ?? '—'
 

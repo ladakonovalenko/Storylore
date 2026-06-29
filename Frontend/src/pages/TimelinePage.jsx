@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Clock, Loader2, Filter, X, History, BookOpen, GitCommit, GitBranch } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../api/timeline'
@@ -28,6 +29,8 @@ const EVENT_TYPES = [
 
 export default function TimelinePage() {
   const { activeProject, activeProjectId } = useProject()
+  // НОВЕ: підтримка глобального пошуку
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [events,       setEvents]       = useState([])
   const [characters,   setCharacters]   = useState([])
@@ -94,6 +97,20 @@ export default function TimelinePage() {
   }, [activeProjectId])
 
   useEffect(() => { load() }, [load])
+
+  // НОВЕ: відкриття конкретної події з глобального пошуку (?focus=<id>) —
+  // подій немає окремої панелі перегляду, тож відкриваємо модалку редагування
+  useEffect(() => {
+    const focusId = searchParams.get('focus')
+    if (!focusId || events.length === 0) return
+    const target = events.find((e) => String(e.id) === focusId)
+    if (target) { setEditingEvent(target); setIsModalOpen(true) }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('focus')
+      return next
+    }, { replace: true })
+  }, [searchParams, events]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── CRUD подій ────────────────────────────────────────────────────────────
   const handleCreate = async (payload) => {

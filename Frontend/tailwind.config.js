@@ -4,28 +4,32 @@ export default {
   theme: {
     extend: {
       colors: {
+        // ВИПРАВЛЕНО: усі кольори тепер посилаються на CSS-змінні,
+        // які перемикаються залежно від теми (.light на <html>).
+        // Назви токенів лишені тими ж (ink/parchment/amber/crimson/moss),
+        // щоб не редагувати жоден із компонентів — змінюються лише значення.
         ink: {
-          900: '#14161F',
-          800: '#191C28',
-          700: '#1F2230',
-          500: '#3A3F54',
-          300: '#565C77',
+          900: 'var(--ink-900)',
+          800: 'var(--ink-800)',
+          700: 'var(--ink-700)',
+          500: 'var(--ink-500)',
+          300: 'var(--ink-300)',
         },
         parchment: {
-          DEFAULT: '#E8E2D3',
-          dim: '#8B8FA3',
+          DEFAULT: 'var(--parchment)',
+          dim: 'var(--parchment-dim)',
         },
         amber: {
-          ink: '#C98A3E',
-          soft: '#E0AD6E',
+          ink: 'var(--amber-ink)',
+          soft: 'var(--amber-soft)',
         },
         crimson: {
-          dim: '#9A4A45',
-          soft: '#C16B65',
+          dim: 'var(--crimson-dim)',
+          soft: 'var(--crimson-soft)',
         },
         moss: {
-          dim: '#5E7A66',
-          soft: '#7F9C87',
+          dim: 'var(--moss-dim)',
+          soft: 'var(--moss-soft)',
         },
       },
       fontFamily: {

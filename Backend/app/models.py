@@ -50,6 +50,7 @@ class Project(Base):
     arcs = relationship("Arc", back_populates="project", cascade="all, delete-orphan")
     branches = relationship("Branch", back_populates="project", cascade="all, delete-orphan")
     owner      = relationship("User", back_populates="projects")
+    wiki_articles = relationship("WikiArticle", back_populates="project", cascade="all, delete-orphan")
 
 class Faction(Base):
     __tablename__ = "factions"
@@ -292,5 +293,26 @@ class RelationshipHistory(Base):
     old_status      = Column(String,  nullable=True)
     new_status      = Column(String)
     description     = Column(Text,    default="")
-
     parent_relationship = relationship("CharacterRelationship", back_populates="history")
+
+    class WikiArticle(Base):
+        __tablename__ = "wiki_articles"
+
+        id = Column(Integer, primary_key=True, index=True)
+        project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+        title = Column(String, nullable=False)
+        category = Column(String, default="Інше")  # Магія / Зброя / Релігія / Флора і фауна / Культура / Історія / Інше
+        content = Column(Text, default="")
+
+        project = relationship("Project", back_populates="wiki_articles")
+        links = relationship("WikiArticleLink", back_populates="article", cascade="all, delete-orphan")
+
+    class WikiArticleLink(Base):
+        __tablename__ = "wiki_article_links"
+
+        id = Column(Integer, primary_key=True, index=True)
+        article_id = Column(Integer, ForeignKey("wiki_articles.id", ondelete="CASCADE"))
+        entity_type = Column(String, nullable=False)  # 'character' | 'faction' | 'location'
+        entity_id = Column(Integer, nullable=False)
+
+        article = relationship("WikiArticle", back_populates="links")

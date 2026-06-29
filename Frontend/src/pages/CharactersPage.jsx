@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Users, X, SlidersHorizontal, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getCharacters, createCharacter, deleteCharacter } from '../api/characters'
@@ -26,6 +27,8 @@ const parseTags = (tags) =>
 
 export default function CharactersPage() {
   const { activeProjectId } = useProject()
+  // НОВЕ: підтримка глобального пошуку — відкриття конкретного персонажа через ?focus=<id>
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [characters, setCharacters]       = useState([])
   const [templateCache, setTemplateCache] = useState({}) // key → detail object
@@ -60,6 +63,19 @@ export default function CharactersPage() {
   }, [activeProjectId])
 
   useEffect(() => { load() }, [load])
+
+  // НОВЕ: якщо прийшли з глобального пошуку (?focus=<id>) — відкриваємо потрібного персонажа
+  useEffect(() => {
+    const focusId = searchParams.get('focus')
+    if (!focusId || characters.length === 0) return
+    const target = characters.find((c) => String(c.id) === focusId)
+    if (target) setSelectedChar(target)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('focus')
+      return next
+    }, { replace: true })
+  }, [searchParams, characters]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Кешуємо деталі шаблону для кожного унікального template_key
   useEffect(() => {

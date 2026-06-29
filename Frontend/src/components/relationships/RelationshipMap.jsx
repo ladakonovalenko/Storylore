@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
+import { ZoomIn, ZoomOut, Maximize2, X } from 'lucide-react'
 
 const TYPE_COLORS = {
   'Родина':       '#EF9F27',
@@ -15,6 +15,7 @@ const TYPE_COLORS = {
 }
 
 const DEFAULT_COLOR = '#888780'
+const CLICK_THRESHOLD = 5 // px — менше цього вважаємо кліком, а не перетягуванням
 
 // Початкове розташування вузлів по колу
 function layoutNodes(characters) {
@@ -33,20 +34,14 @@ function layoutNodes(characters) {
   })
 }
 
-// Сила → товщина лінії (1–6px)
 function strengthToWidth(s) {
   const abs = Math.abs(s ?? 0)
   return 1 + (abs / 100) * 5
 }
-
-// Сила → колір лінії
 function strengthToColor(s, type) {
   if (s === 0) return '#888780'
-  const base = TYPE_COLORS[type] ?? DEFAULT_COLOR
-  return base
+  return TYPE_COLORS[type] ?? DEFAULT_COLOR
 }
-
-// Сила → opacity
 function strengthToOpacity(s) {
   const abs = Math.abs(s ?? 0)
   return 0.3 + (abs / 100) * 0.7
@@ -57,8 +52,10 @@ export default function RelationshipMap({ relationships, characters }) {
   const [nodes, setNodes]   = useState([])
   const [zoom, setZoom]     = useState(1)
   const [pan, setPan]       = useState({ x: 0, y: 0 })
-  const [dragging, setDragging] = useState(null) // { type: 'node'|'pan', id?, startX, startY, origX, origY }
+  const [dragging, setDragging] = useState(null) // { type: 'node'|'pan', id?, startX, startY, origX, origY, moved }
   const [hovered, setHovered]   = useState(null) // rel id
+  // НОВЕ: персонаж, на якого клікнули — показуємо лише його прямі зв'язки
+  const [focusedId, setFocusedId] = useState(null)
 
   // Ініціалізація вузлів
   useEffect(() => {
@@ -71,34 +68,48 @@ export default function RelationshipMap({ relationships, characters }) {
   // ── Drag вузла ───────────────────────────────────────────────────────────
   const onNodeMouseDown = useCallback((e, id) => {
     e.stopPropagation()
-    setDragging({ type: 'node', id, startX: e.clientX, startY: e.clientY })
+    setDragging({ type: 'node', id, startX: e.clientX, startY: e.clientY, moved: false })
   }, [])
 
   // ── Drag полотна ─────────────────────────────────────────────────────────
   const onSvgMouseDown = useCallback((e) => {
     if (e.target === svgRef.current || e.target.tagName === 'svg') {
-      setDragging({ type: 'pan', startX: e.clientX, startY: e.clientY, origX: pan.x, origY: pan.y })
+      setDragging({ type: 'pan', startX: e.clientX, startY: e.clientY, origX: pan.x, origY: pan.y, moved: false })
     }
   }, [pan])
 
   const onMouseMove = useCallback((e) => {
     if (!dragging) return
+    const movedNow = Math.abs(e.clientX - dragging.startX) > CLICK_THRESHOLD ||
+                      Math.abs(e.clientY - dragging.startY) > CLICK_THRESHOLD
+
     if (dragging.type === 'node') {
       const dx = (e.clientX - dragging.startX) / zoom
       const dy = (e.clientY - dragging.startY) / zoom
       setNodes((prev) => prev.map((n) =>
         n.id === dragging.id ? { ...n, x: n.x + dx, y: n.y + dy } : n
       ))
-      setDragging((d) => ({ ...d, startX: e.clientX, startY: e.clientY }))
+      setDragging((d) => ({ ...d, startX: e.clientX, startY: e.clientY, moved: d.moved || movedNow }))
     } else if (dragging.type === 'pan') {
       setPan({
         x: dragging.origX + e.clientX - dragging.startX,
         y: dragging.origY + e.clientY - dragging.startY,
       })
+      setDragging((d) => ({ ...d, moved: d.moved || movedNow }))
     }
   }, [dragging, zoom])
 
-  const onMouseUp = useCallback(() => setDragging(null), [])
+  // НОВЕ: розрізняємо клік (без руху) і перетягування
+  const onMouseUp = useCallback(() => {
+    if (dragging?.type === 'node' && !dragging.moved) {
+      // Клік на вузлі — перемикаємо фокус (повторний клік на тому ж — скидає)
+      setFocusedId((prev) => (prev === dragging.id ? null : dragging.id))
+    } else if (dragging?.type === 'pan' && !dragging.moved) {
+      // Клік по порожньому фону — скидаємо фокус
+      setFocusedId(null)
+    }
+    setDragging(null)
+  }, [dragging])
 
   // ── Zoom колесо ──────────────────────────────────────────────────────────
   const onWheel = useCallback((e) => {
@@ -115,14 +126,26 @@ export default function RelationshipMap({ relationships, characters }) {
 
   const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }) }
 
-  // ── Мітка на лінії (середина) ────────────────────────────────────────────
-  const edgeMidpoint = (a, b) => ({
-    x: (a.x + b.x) / 2,
-    y: (a.y + b.y) / 2,
-  })
+  const edgeMidpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
 
-  // ── Унікальні типи для легенди ───────────────────────────────────────────
-  const usedTypes = [...new Set(relationships.map((r) => r.relationship_type))]
+  // НОВЕ: фільтрація зв'язків і вузлів за фокусом
+  const visibleRelationships = focusedId
+    ? relationships.filter((r) => r.character_id === focusedId || r.target_id === focusedId)
+    : relationships
+
+  const visibleNodeIds = focusedId
+    ? new Set([
+        focusedId,
+        ...visibleRelationships.flatMap((r) => [r.character_id, r.target_id]),
+      ])
+    : null
+
+  const visibleNodes = focusedId
+    ? nodes.filter((n) => visibleNodeIds.has(n.id))
+    : nodes
+
+  const focusedNode = focusedId ? nodeMap[focusedId] : null
+  const usedTypes = [...new Set(visibleRelationships.map((r) => r.relationship_type))]
 
   if (!characters?.length) {
     return (
@@ -136,9 +159,23 @@ export default function RelationshipMap({ relationships, characters }) {
     <div className="flex flex-col gap-3">
       {/* Панель керування */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-parchment-dim/60">
-          Перетягуйте вузли · прокручуйте для масштабу · тягніть фон для переміщення
-        </p>
+        {focusedNode ? (
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-amber-ink/15 px-3 py-1 text-xs font-medium text-amber-soft">
+              Зв'язки: {focusedNode.name}
+            </span>
+            <button
+              onClick={() => setFocusedId(null)}
+              className="flex items-center gap-1 rounded-full border border-ink-500 px-2.5 py-1 text-xs text-parchment-dim hover:border-amber-ink hover:text-amber-soft"
+            >
+              <X size={11} /> Показати всі
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-parchment-dim/60">
+            Клік на персонажі — лише його зв'язки · перетягування — перемістити · прокручування — масштаб
+          </p>
+        )}
         <div className="flex items-center gap-1">
           <button onClick={() => setZoom((z) => Math.min(3, z + 0.15))}
             className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-parchment"
@@ -174,14 +211,14 @@ export default function RelationshipMap({ relationships, characters }) {
             <marker id="map-arrow" viewBox="0 0 10 10" refX="8" refY="5"
               markerWidth="5" markerHeight="5" orient="auto-start-reverse">
               <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke"
-                stroke-width="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </marker>
           </defs>
 
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
 
-            {/* ── Лінії зв'язків ── */}
-            {relationships.map((rel) => {
+            {/* ── Лінії зв'язків (лише видимі) ── */}
+            {visibleRelationships.map((rel) => {
               const a = nodeMap[rel.character_id]
               const b = nodeMap[rel.target_id]
               if (!a || !b) return null
@@ -192,7 +229,6 @@ export default function RelationshipMap({ relationships, characters }) {
               const mid     = edgeMidpoint(a, b)
               const isHov   = hovered === rel.id
 
-              // Вектор від a до b, зупиняємо лінію за 22px від центру вузла
               const dx = b.x - a.x
               const dy = b.y - a.y
               const dist = Math.sqrt(dx * dx + dy * dy) || 1
@@ -202,7 +238,6 @@ export default function RelationshipMap({ relationships, characters }) {
               const x2 = b.x - (dx / dist) * R
               const y2 = b.y - (dy / dist) * R
 
-              // Пунктир для негативних зв'язків
               const dash = (rel.strength ?? 0) < 0 ? '6 4' : 'none'
 
               return (
@@ -210,10 +245,8 @@ export default function RelationshipMap({ relationships, characters }) {
                    onMouseEnter={() => setHovered(rel.id)}
                    onMouseLeave={() => setHovered(null)}
                    style={{ cursor: 'default' }}>
-                  {/* Невидима широка зона для ховера */}
                   <line x1={x1} y1={y1} x2={x2} y2={y2}
                     stroke="transparent" strokeWidth={20} />
-                  {/* Видима лінія */}
                   <line x1={x1} y1={y1} x2={x2} y2={y2}
                     stroke={color}
                     strokeWidth={isHov ? width + 1.5 : width}
@@ -221,7 +254,6 @@ export default function RelationshipMap({ relationships, characters }) {
                     strokeDasharray={dash}
                     markerEnd="url(#map-arrow)"
                   />
-                  {/* Мітка на лінії */}
                   {isHov && (
                     <g>
                       <rect
@@ -240,40 +272,40 @@ export default function RelationshipMap({ relationships, characters }) {
               )
             })}
 
-            {/* ── Вузли персонажів ── */}
-            {nodes.map((node) => (
-              <g key={node.id}
-                 style={{ cursor: dragging?.id === node.id ? 'grabbing' : 'grab' }}
-                 onMouseDown={(e) => onNodeMouseDown(e, node.id)}>
-                {/* Тінь */}
-                <circle cx={node.x} cy={node.y} r={24}
-                  fill="#0a0a14" opacity={0.5} />
-                {/* Коло */}
-                <circle cx={node.x} cy={node.y} r={22}
-                  fill="#1e1e3a" stroke="#5a5a8a" strokeWidth={1} />
-                {/* Ініціали */}
-                <text x={node.x} y={node.y}
-                  textAnchor="middle" dominantBaseline="central"
-                  fontSize={13} fontWeight={500}
-                  fill="#c8c6d0" fontFamily="sans-serif">
-                  {node.name.slice(0, 2).toUpperCase()}
-                </text>
-                {/* Ім'я під вузлом */}
-                <text x={node.x} y={node.y + 32}
-                  textAnchor="middle" dominantBaseline="central"
-                  fontSize={11} fill="#9a98a8" fontFamily="sans-serif">
-                  {node.name.length > 14 ? node.name.slice(0, 13) + '…' : node.name}
-                </text>
-                {/* Роль під іменем */}
-                {node.role && (
-                  <text x={node.x} y={node.y + 45}
+            {/* ── Вузли персонажів (лише видимі) ── */}
+            {visibleNodes.map((node) => {
+              const isFocused = node.id === focusedId
+              return (
+                <g key={node.id}
+                   style={{ cursor: dragging?.id === node.id ? 'grabbing' : 'grab' }}
+                   onMouseDown={(e) => onNodeMouseDown(e, node.id)}>
+                  <circle cx={node.x} cy={node.y} r={24}
+                    fill="#0a0a14" opacity={0.5} />
+                  <circle cx={node.x} cy={node.y} r={22}
+                    fill="#1e1e3a"
+                    stroke={isFocused ? 'var(--amber-ink)' : '#5a5a8a'}
+                    strokeWidth={isFocused ? 2.5 : 1} />
+                  <text x={node.x} y={node.y}
                     textAnchor="middle" dominantBaseline="central"
-                    fontSize={10} fill="#6a6880" fontFamily="sans-serif">
-                    {node.role.length > 16 ? node.role.slice(0, 15) + '…' : node.role}
+                    fontSize={13} fontWeight={500}
+                    fill="#c8c6d0" fontFamily="sans-serif">
+                    {node.name.slice(0, 2).toUpperCase()}
                   </text>
-                )}
-              </g>
-            ))}
+                  <text x={node.x} y={node.y + 32}
+                    textAnchor="middle" dominantBaseline="central"
+                    fontSize={11} fill="#9a98a8" fontFamily="sans-serif">
+                    {node.name.length > 14 ? node.name.slice(0, 13) + '…' : node.name}
+                  </text>
+                  {node.role && (
+                    <text x={node.x} y={node.y + 45}
+                      textAnchor="middle" dominantBaseline="central"
+                      fontSize={10} fill="#6a6880" fontFamily="sans-serif">
+                      {node.role.length > 16 ? node.role.slice(0, 15) + '…' : node.role}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
           </g>
         </svg>
       </div>

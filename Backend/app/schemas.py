@@ -475,3 +475,39 @@ class ProjectResponse(BaseModel):
     title:       str
     description: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- БІБЛІОТЕКА (WIKI) ---
+class WikiArticleLinkCreate(BaseModel):
+    entity_type: str   # 'character' | 'faction' | 'location'
+    entity_id: int
+
+class WikiArticleLinkResponse(BaseModel):
+    id: int
+    entity_type: str
+    entity_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class WikiArticleCreate(BaseModel):
+    project_id: int
+    title: str
+    category: Optional[str] = "Інше"
+    content: Optional[str] = ""
+    links: List[WikiArticleLinkCreate] = []
+
+class WikiArticleUpdate(BaseModel):
+    title: Optional[str] = None
+    category: Optional[str] = None
+    content: Optional[str] = None
+
+class WikiArticleLinksAssignment(BaseModel):
+    links: List[WikiArticleLinkCreate] = []
+
+class WikiArticleResponse(BaseModel):
+    id: int
+    project_id: int
+    title: str
+    category: Optional[str] = None
+    content: Optional[str] = ""
+    links: List[WikiArticleLinkResponse] = []
+    model_config = ConfigDict(from_attributes=True)

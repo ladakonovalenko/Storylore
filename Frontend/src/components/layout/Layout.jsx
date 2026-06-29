@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import SearchModal from './SearchModal'
 
 export default function Layout() {
   return (
@@ -12,6 +13,8 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      {/* НОВЕ: глобальна модалка пошуку (Ctrl+K), доступна з будь-якої сторінки */}
+      <SearchModal />
     </div>
   )
 }

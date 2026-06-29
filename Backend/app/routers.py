@@ -1149,6 +1149,68 @@ def delete_location_relationship(relationship_id: int, db: Session = Depends(get
 
 
 # ==========================================
+# 📚 БІБЛІОТЕКА (Wiki / Нотатки)
+# ==========================================
+@router.post("/wiki-articles", response_model=schemas.WikiArticleResponse, tags=["Wiki"])
+def create_wiki_article(payload: schemas.WikiArticleCreate, db: Session = Depends(get_db)):
+    data = payload.model_dump(exclude={"links"})
+    db_article = models.WikiArticle(**data)
+    db.add(db_article)
+    db.commit()
+    db.refresh(db_article)
+
+    for link in payload.links:
+        db.add(models.WikiArticleLink(article_id=db_article.id, **link.model_dump()))
+    db.commit()
+    db.refresh(db_article)
+    return db_article
+
+
+@router.get("/projects/{project_id}/wiki-articles", response_model=List[schemas.WikiArticleResponse], tags=["Wiki"])
+def get_project_wiki_articles(project_id: int, db: Session = Depends(get_db)):
+    return db.query(models.WikiArticle).filter(models.WikiArticle.project_id == project_id).all()
+
+
+@router.put("/wiki-articles/{article_id}", response_model=schemas.WikiArticleResponse, tags=["Wiki"])
+def update_wiki_article(article_id: int, payload: schemas.WikiArticleUpdate, db: Session = Depends(get_db)):
+    db_article = db.query(models.WikiArticle).filter(models.WikiArticle.id == article_id).first()
+    if not db_article:
+        raise HTTPException(status_code=404, detail="Статтю не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_article, key, value)
+    db.commit()
+    db.refresh(db_article)
+    return db_article
+
+
+@router.put("/wiki-articles/{article_id}/links", response_model=schemas.WikiArticleResponse, tags=["Wiki"])
+def set_wiki_article_links(article_id: int, payload: schemas.WikiArticleLinksAssignment, db: Session = Depends(get_db)):
+    db_article = db.query(models.WikiArticle).filter(models.WikiArticle.id == article_id).first()
+    if not db_article:
+        raise HTTPException(status_code=404, detail="Статтю не знайдено")
+
+    db.query(models.WikiArticleLink).filter(models.WikiArticleLink.article_id == article_id).delete(
+        synchronize_session=False
+    )
+    for link in payload.links:
+        db.add(models.WikiArticleLink(article_id=article_id, **link.model_dump()))
+
+    db.commit()
+    db.refresh(db_article)
+    return db_article
+
+
+@router.delete("/wiki-articles/{article_id}", tags=["Wiki"])
+def delete_wiki_article(article_id: int, db: Session = Depends(get_db)):
+    db_article = db.query(models.WikiArticle).filter(models.WikiArticle.id == article_id).first()
+    if not db_article:
+        raise HTTPException(status_code=404, detail="Статтю не знайдено")
+    db.delete(db_article)  # cascade видалить пов'язані WikiArticleLink
+    db.commit()
+    return {"detail": "Статтю видалено"}
+
+
+# ==========================================
 # 📂 ПРОЄКТИ
 # ==========================================
 @router.post("/projects", response_model=schemas.ProjectResponse, tags=["Projects"])

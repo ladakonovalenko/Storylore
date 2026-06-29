@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Shield, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getProjectFactions, createFaction, updateFaction, deleteFaction, setFactionCharacters } from '../api/factions'
@@ -13,6 +14,9 @@ import InkStroke from '../components/layout/InkStroke'
 
 export default function FactionsPage() {
   const { activeProject, activeProjectId } = useProject()
+  // НОВЕ: підтримка глобального пошуку — підсвітка картки через ?focus=<id>
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [highlightedId, setHighlightedId] = useState(null)
 
   const [factions, setFactions]         = useState([])
   // НОВЕ: персонажі проєкту — потрібні для мультивибору учасників фракції
@@ -44,6 +48,25 @@ export default function FactionsPage() {
   }, [activeProjectId])
 
   useEffect(() => { load() }, [load])
+
+  // НОВЕ: прокрутка до картки фракції та тимчасова підсвітка з глобального пошуку (?focus=<id>)
+  useEffect(() => {
+    const focusId = searchParams.get('focus')
+    if (!focusId || factions.length === 0) return
+    const target = factions.find((f) => String(f.id) === focusId)
+    if (target) {
+      setHighlightedId(target.id)
+      setTimeout(() => {
+        document.getElementById(`faction-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+      setTimeout(() => setHighlightedId(null), 2500)
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('focus')
+      return next
+    }, { replace: true })
+  }, [searchParams, factions]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // НОВЕ: лише оновити список персонажів (після зміни складу фракції),
   // без повторного завантаження самих фракцій
@@ -197,14 +220,19 @@ export default function FactionsPage() {
             <p className="mb-4 text-xs text-parchment-dim">Усього фракцій: {factions.length}</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {factions.map((faction) => (
-                <FactionCard
+                <div
                   key={faction.id}
-                  faction={faction}
-                  characters={characters}
-                  onEdit={handleEdit}
-                  onAssignCharacters={handleAssignCharacters}
-                  onDelete={handleDeleteRequest}
-                />
+                  id={`faction-${faction.id}`}
+                  className={highlightedId === faction.id ? 'rounded-lg ring-2 ring-amber-ink transition-shadow' : ''}
+                >
+                  <FactionCard
+                    faction={faction}
+                    characters={characters}
+                    onEdit={handleEdit}
+                    onAssignCharacters={handleAssignCharacters}
+                    onDelete={handleDeleteRequest}
+                  />
+                </div>
               ))}
             </div>
           </>
