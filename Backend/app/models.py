@@ -295,24 +295,24 @@ class RelationshipHistory(Base):
     description     = Column(Text,    default="")
     parent_relationship = relationship("CharacterRelationship", back_populates="history")
 
-    class WikiArticle(Base):
-        __tablename__ = "wiki_articles"
+class WikiArticle(Base):
+    __tablename__ = "wiki_articles"
 
-        id = Column(Integer, primary_key=True, index=True)
-        project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
-        title = Column(String, nullable=False)
-        category = Column(String, default="Інше")  # Магія / Зброя / Релігія / Флора і фауна / Культура / Історія / Інше
-        content = Column(Text, default="")
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    title = Column(String, nullable=False)
+    category = Column(String, default="Інше")  # Магія / Зброя / Релігія / Флора і фауна / Культура / Історія / Інше
+    content = Column(Text, default="")
 
-        project = relationship("Project", back_populates="wiki_articles")
-        links = relationship("WikiArticleLink", back_populates="article", cascade="all, delete-orphan")
+    project = relationship("Project", back_populates="wiki_articles")
+    links = relationship("WikiArticleLink", back_populates="article", cascade="all, delete-orphan")
 
-    class WikiArticleLink(Base):
-        __tablename__ = "wiki_article_links"
+class WikiArticleLink(Base):
+    __tablename__ = "wiki_article_links"
 
-        id = Column(Integer, primary_key=True, index=True)
-        article_id = Column(Integer, ForeignKey("wiki_articles.id", ondelete="CASCADE"))
-        entity_type = Column(String, nullable=False)  # 'character' | 'faction' | 'location'
-        entity_id = Column(Integer, nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("wiki_articles.id", ondelete="CASCADE"))
+    entity_type = Column(String, nullable=False)  # 'character' | 'faction' | 'location'
+    entity_id = Column(Integer, nullable=False)
 
-        article = relationship("WikiArticle", back_populates="links")
+    article = relationship("WikiArticle", back_populates="links")
