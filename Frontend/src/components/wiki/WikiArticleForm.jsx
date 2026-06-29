@@ -7,10 +7,30 @@ export const WIKI_CATEGORIES = [
   'Зброя та технології',
   'Релігія та обряди',
   'Флора і фауна',
+  'Раси та народи',
+  'Космогонія',
   'Культура та традиції',
   'Історія та політика',
+  'Термінологія',
+  'Канва сюжету',
   'Інше',
 ]
+
+// НОВЕ: шаблон-заготовка, що підставляється при виборі категорії "Канва сюжету"
+const PLOT_OUTLINE_TEMPLATE = `Вступ:
+
+
+Розкачка:
+
+
+Основний конфлікт:
+
+
+Варіанти вирішення:
+
+
+Фінал:
+`
 
 const inputCls =
   'mt-1 w-full rounded-md border border-ink-500 bg-ink-900 px-3 py-2 text-sm text-parchment placeholder:text-parchment-dim/50 focus:border-amber-ink focus:outline-none'
@@ -26,6 +46,14 @@ export default function WikiArticleForm({
     (initial?.links ?? []).map((l) => ({ entity_type: l.entity_type, entity_id: l.entity_id }))
   )
   const [touched, setTouched] = useState(false)
+
+  // НОВЕ: при виборі "Канва сюжету" на порожньому тексті — підставляємо шаблон-заготовку
+  const handleCategoryChange = (newCategory) => {
+    setCategory(newCategory)
+    if (newCategory === 'Канва сюжету' && content.trim() === '') {
+      setContent(PLOT_OUTLINE_TEMPLATE)
+    }
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -55,7 +83,7 @@ export default function WikiArticleForm({
 
       <label className="block text-sm text-parchment-dim">
         Категорія
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
+        <select value={category} onChange={(e) => handleCategoryChange(e.target.value)} className={inputCls}>
           {WIKI_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </label>

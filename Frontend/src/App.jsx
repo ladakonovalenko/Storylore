@@ -16,6 +16,8 @@ import RelationshipsPage from './pages/RelationshipsPage'
 import WorldMapPage    from './pages/WorldMapPage'
 import TimelinePage    from './pages/TimelinePage'
 import WikiPage        from './pages/WikiPage'
+import RemindersPage    from './pages/RemindersPage'
+import PlotOutlinePage  from './pages/PlotOutlinePage'
 
 export default function App() {
   return (
@@ -51,6 +53,8 @@ export default function App() {
                 <Route path="/world-map"     element={<WorldMapPage />} />
                 <Route path="/timeline"      element={<TimelinePage />} />
                 <Route path="/wiki"          element={<WikiPage />} />
+                <Route path="/reminders"     element={<RemindersPage />} />
+                <Route path="/plot-outline"  element={<PlotOutlinePage />} />
                 <Route path="*"              element={<Navigate to="/projects" replace />} />
               </Route>
             </Route>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Loader2, Trash2, X, Link2 } from 'lucide-react'
+import { Plus, Loader2, Trash2, X, Link2, Globe } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useProject } from '../context/ProjectContext'
 import { getProjectLocations, createLocation, updateLocation, deleteLocation } from '../api/locations'
@@ -8,9 +8,11 @@ import {
   getProjectLocationRelationships, createLocationRelationship,
   updateLocationRelationship, deleteLocationRelationship,
 } from '../api/locationRelationships'
+import { getProjectDimensions } from '../api/dimensions'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import InkStroke from '../components/layout/InkStroke'
+import DimensionManager from '../components/worldmap/DimensionManager'
 import WorldMapCanvas, { LOCATION_TYPE_COLORS, LOCATION_REL_TYPE_COLORS } from '../components/worldmap/WorldMapCanvas'
 
 const TYPE_OPTIONS = Object.keys(LOCATION_TYPE_COLORS)
@@ -20,17 +22,24 @@ const inputCls =
   'mt-1 w-full rounded-md border border-ink-500 bg-ink-900 px-3 py-2 text-sm text-parchment placeholder:text-parchment-dim/50 focus:border-amber-ink focus:outline-none'
 
 // ── Форма створення/редагування локації ──────────────────────────────────────
-function LocationForm({ initial, onSubmit, onCancel, isSubmitting }) {
+// НОВЕ: dimensions + defaultDimensionId — дозволяють обрати/підставити вимір
+function LocationForm({ initial, dimensions = [], defaultDimensionId = null, onSubmit, onCancel, isSubmitting }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [type, setType] = useState(initial?.type ?? 'Країна')
   const [description, setDescription] = useState(initial?.description ?? '')
+  const [dimensionId, setDimensionId] = useState(initial?.dimension_id ?? defaultDimensionId ?? '')
   const [touched, setTouched] = useState(false)
 
   const handleSubmit = (e) => {
     e.preventDefault()
     setTouched(true)
     if (!name.trim()) return
-    onSubmit({ name: name.trim(), type, description: description.trim() || null })
+    onSubmit({
+      name: name.trim(),
+      type,
+      description: description.trim() || null,
+      dimension_id: dimensionId !== '' ? Number(dimensionId) : null,
+    })
   }
 
   return (
@@ -50,6 +59,15 @@ function LocationForm({ initial, onSubmit, onCancel, isSubmitting }) {
         Тип
         <select value={type} onChange={(e) => setType(e.target.value)} className={inputCls}>
           {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </label>
+
+      {/* НОВЕ: вимір */}
+      <label className="block text-sm text-parchment-dim">
+        Вимір
+        <select value={dimensionId} onChange={(e) => setDimensionId(e.target.value)} className={inputCls}>
+          <option value="">— основний світ —</option>
+          {dimensions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
       </label>
 
@@ -143,9 +161,10 @@ function RelationshipForm({ sourceName, targetName, initial, onSubmit, onCancel,
 }
 
 // ── Бічна панель деталей локації ──────────────────────────────────────────────
-function LocationDetailPanel({ location, onClose, onEdit, onDelete }) {
+function LocationDetailPanel({ location, dimensions, onClose, onEdit, onDelete }) {
   if (!location) return null
   const color = location.color || LOCATION_TYPE_COLORS[location.type] || '#888780'
+  const dimension = dimensions.find((d) => d.id === location.dimension_id)
 
   return (
     <div className="flex w-full flex-col gap-4 rounded-lg border border-ink-500 bg-ink-800 p-5 lg:w-72">
@@ -157,6 +176,12 @@ function LocationDetailPanel({ location, onClose, onEdit, onDelete }) {
           </div>
           <h3 className="mt-2 font-display text-xl font-medium text-parchment">{location.name}</h3>
           <InkStroke className="mt-1" width={60} color="var(--amber-ink)" />
+          {/* НОВЕ: бейдж виміру */}
+          {dimension && (
+            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-ink-700 px-2 py-0.5 text-xs text-parchment-dim">
+              <Globe size={11} /> {dimension.name}
+            </span>
+          )}
         </div>
         <button onClick={onClose}
           className="rounded p-1.5 text-parchment-dim transition-colors hover:bg-ink-700 hover:text-parchment"
@@ -235,11 +260,14 @@ function RelationshipDetailPanel({ relationship, sourceName, targetName, onClose
 // ── Головна сторінка ──────────────────────────────────────────────────────────
 export default function WorldMapPage() {
   const { activeProjectId } = useProject()
-  // НОВЕ: підтримка глобального пошуку
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [locations, setLocations] = useState([])
   const [relationships, setRelationships] = useState([])
+  // НОВЕ: виміри + активний вимір перегляду ('main' або id виміру як рядок)
+  const [dimensions, setDimensions] = useState([])
+  const [activeDimension, setActiveDimension] = useState('main')
+
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -247,6 +275,9 @@ export default function WorldMapPage() {
   const [editingLocation, setEditingLocation] = useState(null)
   const [selectedLocation, setSelectedLocation] = useState(null)
   const [deletingLocation, setDeletingLocation] = useState(null)
+
+  // НОВЕ: менеджер вимірів
+  const [isDimensionManagerOpen, setIsDimensionManagerOpen] = useState(false)
 
   // Режим з'єднання локацій
   const [linkMode, setLinkMode] = useState(false)
@@ -260,16 +291,20 @@ export default function WorldMapPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const loadAll = useCallback(async () => {
-    if (!activeProjectId) { setLocations([]); setRelationships([]); setIsLoading(false); return }
+    if (!activeProjectId) {
+      setLocations([]); setRelationships([]); setDimensions([]); setIsLoading(false); return
+    }
     setIsLoading(true)
     setError(null)
     try {
-      const [locs, rels] = await Promise.all([
+      const [locs, rels, dims] = await Promise.all([
         getProjectLocations(activeProjectId),
         getProjectLocationRelationships(activeProjectId),
+        getProjectDimensions(activeProjectId),
       ])
       setLocations(locs)
       setRelationships(rels)
+      setDimensions(dims)
     } catch (err) {
       setError('Не вдалося завантажити мапу. Перевірте, чи запущено бекенд на http://127.0.0.1:8001')
     } finally {
@@ -279,12 +314,16 @@ export default function WorldMapPage() {
 
   useEffect(() => { loadAll() }, [loadAll])
 
-  // НОВЕ: відкриття конкретної локації з глобального пошуку (?focus=<id>)
+  // Відкриття конкретної локації з глобального пошуку (?focus=<id>)
   useEffect(() => {
     const focusId = searchParams.get('focus')
     if (!focusId || locations.length === 0) return
     const target = locations.find((l) => String(l.id) === focusId)
-    if (target) setSelectedLocation(target)
+    if (target) {
+      // НОВЕ: перемикаємось на вимір цієї локації, щоб вона була видима на канві
+      setActiveDimension(target.dimension_id ? String(target.dimension_id) : 'main')
+      setSelectedLocation(target)
+    }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       next.delete('focus')
@@ -293,6 +332,15 @@ export default function WorldMapPage() {
   }, [searchParams, locations]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const findLocationName = (id) => locations.find((l) => l.id === id)?.name ?? '—'
+
+  // НОВЕ: локації та зв'язки, видимі в поточному вимірі
+  const visibleLocations = locations.filter((l) =>
+    activeDimension === 'main' ? !l.dimension_id : String(l.dimension_id) === activeDimension
+  )
+  const visibleLocationIds = new Set(visibleLocations.map((l) => l.id))
+  const visibleRelationships = relationships.filter(
+    (r) => visibleLocationIds.has(r.location_id) && visibleLocationIds.has(r.target_id)
+  )
 
   // ── Локації ──
   const handleCreate = async (payload) => {
@@ -435,9 +483,18 @@ export default function WorldMapPage() {
           <InkStroke className="mt-1" width={90} />
         </div>
         <div className="flex items-center gap-2">
+          {/* НОВЕ */}
+          <button
+            onClick={() => setIsDimensionManagerOpen(true)}
+            disabled={!activeProjectId}
+            className="flex items-center gap-2 rounded-md border border-ink-500 px-4 py-2 text-sm font-medium text-parchment-dim hover:border-amber-ink hover:text-amber-soft disabled:opacity-50"
+          >
+            <Globe size={16} />
+            Виміри
+          </button>
           <button
             onClick={toggleLinkMode}
-            disabled={!activeProjectId || locations.length < 2}
+            disabled={!activeProjectId || visibleLocations.length < 2}
             className={`flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50 ${
               linkMode
                 ? 'border-amber-ink bg-amber-ink/15 text-amber-soft'
@@ -457,6 +514,29 @@ export default function WorldMapPage() {
           </button>
         </div>
       </div>
+
+      {/* НОВЕ: перемикач виміру — основний світ чи конкретний паралельний світ */}
+      {!isLoading && dimensions.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-parchment-dim">Світ:</span>
+          <button onClick={() => setActiveDimension('main')}
+            className={`rounded-full px-3 py-1 text-xs transition-colors ${
+              activeDimension === 'main' ? 'bg-amber-ink font-medium text-ink-900' : 'bg-ink-700 text-parchment-dim hover:bg-ink-500'
+            }`}>
+            Основний світ
+          </button>
+          {dimensions.map((d) => (
+            <button key={d.id} onClick={() => setActiveDimension(String(d.id))}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors ${
+                activeDimension === String(d.id) ? 'font-medium text-ink-900' : 'text-parchment-dim hover:bg-ink-500'
+              }`}
+              style={activeDimension === String(d.id) ? { backgroundColor: d.color || '#7F77DD' } : { backgroundColor: 'var(--ink-700)' }}
+            >
+              <Globe size={11} /> {d.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {linkMode && (
         <p className="mt-3 text-sm text-amber-soft">
@@ -483,8 +563,8 @@ export default function WorldMapPage() {
         <div className="mt-6 flex flex-col gap-4 lg:flex-row">
           <div className="flex-1">
             <WorldMapCanvas
-              locations={locations}
-              relationships={relationships}
+              locations={visibleLocations}
+              relationships={visibleRelationships}
               selectedId={selectedLocation?.id}
               linkSourceId={linkSourceId}
               onNodeClick={handleNodeClick}
@@ -495,6 +575,7 @@ export default function WorldMapPage() {
           {selectedLocation && (
             <LocationDetailPanel
               location={selectedLocation}
+              dimensions={dimensions}
               onClose={() => setSelectedLocation(null)}
               onEdit={() => setEditingLocation(selectedLocation)}
               onDelete={() => setDeletingLocation(selectedLocation)}
@@ -516,6 +597,8 @@ export default function WorldMapPage() {
       {/* Модалка створення локації */}
       <Modal title="Новий об'єкт на мапі" isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)}>
         <LocationForm
+          dimensions={dimensions}
+          defaultDimensionId={activeDimension !== 'main' ? activeDimension : null}
           onSubmit={handleCreate}
           onCancel={() => setIsCreateOpen(false)}
           isSubmitting={isSubmitting}
@@ -526,6 +609,7 @@ export default function WorldMapPage() {
       <Modal title="Редагувати об'єкт" isOpen={!!editingLocation} onClose={() => setEditingLocation(null)}>
         <LocationForm
           initial={editingLocation}
+          dimensions={dimensions}
           onSubmit={handleUpdate}
           onCancel={() => setEditingLocation(null)}
           isSubmitting={isSubmitting}
@@ -554,6 +638,15 @@ export default function WorldMapPage() {
           isSubmitting={isSubmitting}
         />
       </Modal>
+
+      {/* НОВЕ: менеджер вимірів */}
+      <DimensionManager
+        isOpen={isDimensionManagerOpen}
+        onClose={() => setIsDimensionManagerOpen(false)}
+        projectId={activeProjectId}
+        dimensions={dimensions}
+        onChange={setDimensions}
+      />
 
       {/* Підтвердження видалення локації */}
       <ConfirmDialog

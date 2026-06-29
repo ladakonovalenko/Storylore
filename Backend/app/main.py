@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from .database import engine, Base
 from . import models
 from .routers import router as api_router
-from app.migrations import run_lightweight_migrations 
+from app.migrations import run_lightweight_migrations
 
 
 Base.metadata.create_all(bind=engine)

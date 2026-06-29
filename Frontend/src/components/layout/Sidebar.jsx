@@ -7,6 +7,8 @@ import {
   Map,
   Clock,
   BookText,
+  Bell,
+  ListTree,
   FileText,
 } from 'lucide-react'
 import InkStroke from './InkStroke'
@@ -19,6 +21,8 @@ const NAV_ITEMS = [
   { to: '/world-map', label: 'Мапа світу', icon: Map },
   { to: '/timeline', label: 'Таймлайн', icon: Clock },
   { to: '/wiki', label: 'Бібліотека', icon: BookText },
+  { to: '/plot-outline', label: 'Каркас сюжету', icon: ListTree },
+  { to: '/reminders', label: 'Не забути', icon: Bell },
   { to: '/templates', label: 'Шаблони', icon: FileText },
 ]
 

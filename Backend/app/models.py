@@ -51,6 +51,9 @@ class Project(Base):
     branches = relationship("Branch", back_populates="project", cascade="all, delete-orphan")
     owner      = relationship("User", back_populates="projects")
     wiki_articles = relationship("WikiArticle", back_populates="project", cascade="all, delete-orphan")
+    reminders = relationship("Reminder", back_populates="project", cascade="all, delete-orphan")
+    plot_outline = relationship("PlotOutline", back_populates="project", uselist=False, cascade="all, delete-orphan")
+    dimensions = relationship("Dimension", back_populates="project", cascade="all, delete-orphan")
 
 class Faction(Base):
     __tablename__ = "factions"
@@ -72,6 +75,7 @@ class Location(Base):
 
     id          = Column(Integer, primary_key=True, index=True)
     project_id  = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"))
+    dimension_id = Column(Integer, ForeignKey("dimensions.id"), nullable=True)
     name        = Column(String, index=True)
     type        = Column(String, default="Країна")
     description = Column(Text,   default="")
@@ -80,6 +84,20 @@ class Location(Base):
     color       = Column(String, nullable=True)
 
     project = relationship("Project", back_populates="locations")
+    dimension = relationship("Dimension", back_populates="locations")
+
+
+class Dimension(Base):
+    __tablename__ = "dimensions"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    project_id  = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    name        = Column(String, nullable=False)
+    description = Column(Text, default="")
+    color       = Column(String, nullable=True)
+
+    project   = relationship("Project", back_populates="dimensions")
+    locations = relationship("Location", back_populates="dimension")
 
 
 class LocationRelationship(Base):
@@ -316,3 +334,30 @@ class WikiArticleLink(Base):
     entity_id = Column(Integer, nullable=False)
 
     article = relationship("WikiArticle", back_populates="links")
+
+class Reminder(Base):
+    __tablename__ = "reminders"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    text       = Column(Text, nullable=False)
+    is_done    = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="reminders")
+
+class PlotOutline(Base):
+    __tablename__ = "plot_outlines"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), unique=True, index=True)
+
+    logline             = Column(Text, default="")  # Про що історія (1-2 речення)
+    setup                = Column(Text, default="")  # Зав'язка
+    rising_action        = Column(Text, default="")  # Розкачка
+    main_conflict        = Column(Text, default="")  # Основний конфлікт
+    key_turns            = Column(Text, default="")  # Ключові повороти
+    resolution_options   = Column(Text, default="")  # Варіанти вирішення
+    ending               = Column(Text, default="")  # Фінал
+
+    project = relationship("Project", back_populates="plot_outline")

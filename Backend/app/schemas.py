@@ -97,6 +97,7 @@ class FactionResponse(BaseModel):
 # --- СХЕМИ ДЛЯ ЛОКАЦІЙ (МАПА СВІТУ) ---
 class LocationCreate(BaseModel):
     project_id: int
+    dimension_id: Optional[int] = None
     name: str
     type: Optional[str] = "Країна"
     description: Optional[str] = None
@@ -105,6 +106,7 @@ class LocationCreate(BaseModel):
     color: Optional[str] = None
 
 class LocationUpdate(BaseModel):
+    dimension_id: Optional[int] = None
     name: Optional[str] = None
     type: Optional[str] = None
     description: Optional[str] = None
@@ -115,6 +117,7 @@ class LocationUpdate(BaseModel):
 class LocationResponse(BaseModel):
     id: int
     project_id: int
+    dimension_id: Optional[int] = None
     name: str
     type: Optional[str] = None
     description: Optional[str] = None
@@ -510,4 +513,62 @@ class WikiArticleResponse(BaseModel):
     category: Optional[str] = None
     content: Optional[str] = ""
     links: List[WikiArticleLinkResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+# --- НАГАДУВАННЯ ("Не забути") ---
+class ReminderCreate(BaseModel):
+    project_id: int
+    text: str
+
+class ReminderUpdate(BaseModel):
+    text: Optional[str] = None
+    is_done: Optional[bool] = None
+
+class ReminderResponse(BaseModel):
+    id: int
+    project_id: int
+    text: str
+    is_done: bool
+    model_config = ConfigDict(from_attributes=True)
+
+# --- КАРКАС СЮЖЕТУ ---
+class PlotOutlineUpdate(BaseModel):
+    logline: Optional[str] = None
+    setup: Optional[str] = None
+    rising_action: Optional[str] = None
+    main_conflict: Optional[str] = None
+    key_turns: Optional[str] = None
+    resolution_options: Optional[str] = None
+    ending: Optional[str] = None
+
+class PlotOutlineResponse(BaseModel):
+    id: int
+    project_id: int
+    logline: Optional[str] = ""
+    setup: Optional[str] = ""
+    rising_action: Optional[str] = ""
+    main_conflict: Optional[str] = ""
+    key_turns: Optional[str] = ""
+    resolution_options: Optional[str] = ""
+    ending: Optional[str] = ""
+    model_config = ConfigDict(from_attributes=True)
+
+# --- ВИМІРИ ---
+class DimensionCreate(BaseModel):
+    project_id: int
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = None
+
+class DimensionUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+
+class DimensionResponse(BaseModel):
+    id: int
+    project_id: int
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)

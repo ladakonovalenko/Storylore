@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, BookText, Loader2, Search, X } from 'lucide-react'
+import { Plus, BookText, Loader2, Search, X, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useProject } from '../context/ProjectContext'
 import {
@@ -10,6 +10,8 @@ import {
 import { getCharacters } from '../api/characters'
 import { getProjectFactions } from '../api/factions'
 import { getProjectLocations } from '../api/locations'
+import { downloadTextFile } from '../utils/fileDownload'
+import { buildLibraryMarkdown } from '../utils/wikiExport'
 import WikiArticleCard from '../components/wiki/WikiArticleCard'
 import WikiArticleDetail from '../components/wiki/WikiArticleDetail'
 import WikiArticleForm, { WIKI_CATEGORIES } from '../components/wiki/WikiArticleForm'
@@ -140,6 +142,13 @@ export default function WikiPage() {
   const usedCategories = WIKI_CATEGORIES.filter((c) => articles.some((a) => a.category === c))
   const projectTitle = activeProject?.title || activeProject?.name || null
 
+  // НОВЕ: завантаження всієї бібліотеки одним .md файлом
+  const handleExportAll = () => {
+    const md = buildLibraryMarkdown(articles, characters, factions, locations, projectTitle)
+    const safeTitle = (projectTitle || 'проєкт').replace(/[\\/:*?"<>|]/g, '').trim()
+    downloadTextFile(`Бібліотека-${safeTitle}.md`, md)
+  }
+
   return (
     <div className="flex h-full gap-6">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -154,15 +163,26 @@ export default function WikiPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => {
-              if (!activeProjectId) { toast.error('Спочатку оберіть активний проєкт'); return }
-              setIsCreateOpen(true)
-            }}
-            className="flex items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft"
-          >
-            <Plus size={16} /> Нова стаття
-          </button>
+          <div className="flex items-center gap-2">
+            {/* НОВЕ: експорт усієї бібліотеки */}
+            {articles.length > 0 && (
+              <button
+                onClick={handleExportAll}
+                className="flex items-center gap-2 rounded-md border border-ink-500 px-4 py-2 text-sm text-parchment-dim hover:border-amber-ink hover:text-amber-soft"
+              >
+                <Download size={16} /> Завантажити все
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (!activeProjectId) { toast.error('Спочатку оберіть активний проєкт'); return }
+                setIsCreateOpen(true)
+              }}
+              className="flex items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft"
+            >
+              <Plus size={16} /> Нова стаття
+            </button>
+          </div>
         </div>
 
         {!activeProjectId ? (

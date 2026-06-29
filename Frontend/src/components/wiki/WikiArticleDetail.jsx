@@ -1,13 +1,19 @@
-import { X, Edit3, Trash2, Users, Shield, Map } from 'lucide-react'
+import { X, Edit3, Trash2, Users, Shield, Map, Download } from 'lucide-react'
 import InkStroke from '../layout/InkStroke'
+import { downloadTextFile } from '../../utils/fileDownload'
+import { buildArticleMarkdown } from '../../utils/wikiExport'
 
 const CATEGORY_COLORS = {
   'Магічна система':       '#7F77DD',
   'Зброя та технології':   '#E24B4A',
   'Релігія та обряди':     '#EF9F27',
   'Флора і фауна':         '#1D9E75',
+  'Раси та народи':        '#0EA5E9',
+  'Космогонія':            '#8B5CF6',
   'Культура та традиції':  '#D4537E',
   'Історія та політика':   '#378ADD',
+  'Термінологія':          '#F2B705',
+  'Канва сюжету':          '#10B981',
   'Інше':                  '#888780',
 }
 
@@ -24,6 +30,13 @@ export default function WikiArticleDetail({ article, characters, factions, locat
     return item?.name || item?.title || `#${id}`
   }
 
+  // НОВЕ: завантаження поточної статті як .md файлу
+  const handleExport = () => {
+    const md = buildArticleMarkdown(article, characters, factions, locations)
+    const safeTitle = article.title.replace(/[\\/:*?"<>|]/g, '').trim() || 'стаття'
+    downloadTextFile(`${safeTitle}.md`, md)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
@@ -35,6 +48,11 @@ export default function WikiArticleDetail({ article, characters, factions, locat
           <InkStroke className="mt-1" width={80} color="var(--amber-ink)" />
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <button onClick={handleExport}
+            className="rounded p-1.5 text-parchment-dim transition-colors hover:bg-ink-700 hover:text-amber-soft"
+            aria-label="Завантажити як файл">
+            <Download size={15} />
+          </button>
           <button onClick={() => onEdit(article)}
             className="rounded p-1.5 text-parchment-dim transition-colors hover:bg-ink-700 hover:text-amber-soft"
             aria-label="Редагувати">

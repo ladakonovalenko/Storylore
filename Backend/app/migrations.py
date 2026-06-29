@@ -9,6 +9,7 @@ COLUMNS_TO_ENSURE = [
     ("events", "era_id", "INTEGER"),
     ("events", "arc_id", "INTEGER"),
     ("events", "branch_id", "INTEGER"),
+    ("locations", "dimension_id", "INTEGER"),
 ]
 
 

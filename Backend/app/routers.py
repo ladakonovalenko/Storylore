@@ -1007,6 +1007,49 @@ def delete_event_causality(link_id: int, db: Session = Depends(get_db)):
 
 
 # ==========================================
+# 🌐 ВИМІРИ (паралельні світи)
+# ==========================================
+@router.post("/dimensions", response_model=schemas.DimensionResponse, tags=["Locations"])
+def create_dimension(payload: schemas.DimensionCreate, db: Session = Depends(get_db)):
+    db_dim = models.Dimension(**payload.model_dump())
+    db.add(db_dim)
+    db.commit()
+    db.refresh(db_dim)
+    return db_dim
+
+
+@router.get("/projects/{project_id}/dimensions", response_model=List[schemas.DimensionResponse], tags=["Locations"])
+def get_project_dimensions(project_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Dimension).filter(models.Dimension.project_id == project_id).all()
+
+
+@router.put("/dimensions/{dimension_id}", response_model=schemas.DimensionResponse, tags=["Locations"])
+def update_dimension(dimension_id: int, payload: schemas.DimensionUpdate, db: Session = Depends(get_db)):
+    db_dim = db.query(models.Dimension).filter(models.Dimension.id == dimension_id).first()
+    if not db_dim:
+        raise HTTPException(status_code=404, detail="Вимір не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_dim, key, value)
+    db.commit()
+    db.refresh(db_dim)
+    return db_dim
+
+
+@router.delete("/dimensions/{dimension_id}", tags=["Locations"])
+def delete_dimension(dimension_id: int, db: Session = Depends(get_db)):
+    db_dim = db.query(models.Dimension).filter(models.Dimension.id == dimension_id).first()
+    if not db_dim:
+        raise HTTPException(status_code=404, detail="Вимір не знайдено")
+    # Локації цього виміру лишаються — просто "повертаються" в основний світ
+    db.query(models.Location).filter(models.Location.dimension_id == dimension_id).update(
+        {"dimension_id": None}, synchronize_session=False
+    )
+    db.delete(db_dim)
+    db.commit()
+    return {"detail": "Вимір видалено"}
+
+
+# ==========================================
 # 🗺️ ЛОКАЦІЇ (Мапа світу)
 # ==========================================
 @router.post("/locations", response_model=schemas.LocationResponse, tags=["Locations"])
@@ -1208,6 +1251,80 @@ def delete_wiki_article(article_id: int, db: Session = Depends(get_db)):
     db.delete(db_article)  # cascade видалить пов'язані WikiArticleLink
     db.commit()
     return {"detail": "Статтю видалено"}
+
+
+# ==========================================
+# 🔔 НАГАДУВАННЯ ("Не забути")
+# ==========================================
+@router.post("/reminders", response_model=schemas.ReminderResponse, tags=["Reminders"])
+def create_reminder(payload: schemas.ReminderCreate, db: Session = Depends(get_db)):
+    db_reminder = models.Reminder(**payload.model_dump())
+    db.add(db_reminder)
+    db.commit()
+    db.refresh(db_reminder)
+    return db_reminder
+
+
+@router.get("/projects/{project_id}/reminders", response_model=List[schemas.ReminderResponse], tags=["Reminders"])
+def get_project_reminders(project_id: int, db: Session = Depends(get_db)):
+    return (
+        db.query(models.Reminder)
+        .filter(models.Reminder.project_id == project_id)
+        .order_by(models.Reminder.is_done, models.Reminder.id.desc())
+        .all()
+    )
+
+
+@router.put("/reminders/{reminder_id}", response_model=schemas.ReminderResponse, tags=["Reminders"])
+def update_reminder(reminder_id: int, payload: schemas.ReminderUpdate, db: Session = Depends(get_db)):
+    db_reminder = db.query(models.Reminder).filter(models.Reminder.id == reminder_id).first()
+    if not db_reminder:
+        raise HTTPException(status_code=404, detail="Нагадування не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_reminder, key, value)
+    db.commit()
+    db.refresh(db_reminder)
+    return db_reminder
+
+
+@router.delete("/reminders/{reminder_id}", tags=["Reminders"])
+def delete_reminder(reminder_id: int, db: Session = Depends(get_db)):
+    db_reminder = db.query(models.Reminder).filter(models.Reminder.id == reminder_id).first()
+    if not db_reminder:
+        raise HTTPException(status_code=404, detail="Нагадування не знайдено")
+    db.delete(db_reminder)
+    db.commit()
+    return {"detail": "Нагадування видалено"}
+
+
+# ==========================================
+# 🦴 КАРКАС СЮЖЕТУ
+# ==========================================
+@router.get("/projects/{project_id}/plot-outline", response_model=schemas.PlotOutlineResponse, tags=["PlotOutline"])
+def get_plot_outline(project_id: int, db: Session = Depends(get_db)):
+    outline = db.query(models.PlotOutline).filter(models.PlotOutline.project_id == project_id).first()
+    if not outline:
+        # Автоматично створюємо порожній каркас при першому зверненні
+        outline = models.PlotOutline(project_id=project_id)
+        db.add(outline)
+        db.commit()
+        db.refresh(outline)
+    return outline
+
+
+@router.put("/projects/{project_id}/plot-outline", response_model=schemas.PlotOutlineResponse, tags=["PlotOutline"])
+def update_plot_outline(project_id: int, payload: schemas.PlotOutlineUpdate, db: Session = Depends(get_db)):
+    outline = db.query(models.PlotOutline).filter(models.PlotOutline.project_id == project_id).first()
+    if not outline:
+        outline = models.PlotOutline(project_id=project_id)
+        db.add(outline)
+
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(outline, key, value)
+
+    db.commit()
+    db.refresh(outline)
+    return outline
 
 
 # ==========================================
