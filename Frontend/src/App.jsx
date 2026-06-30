@@ -18,6 +18,7 @@ import TimelinePage    from './pages/TimelinePage'
 import WikiPage        from './pages/WikiPage'
 import RemindersPage    from './pages/RemindersPage'
 import PlotOutlinePage  from './pages/PlotOutlinePage'
+import AtmospherePage   from './pages/AtmospherePage'
 
 export default function App() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
                 <Route path="/wiki"          element={<WikiPage />} />
                 <Route path="/reminders"     element={<RemindersPage />} />
                 <Route path="/plot-outline"  element={<PlotOutlinePage />} />
+                <Route path="/atmosphere"    element={<AtmospherePage />} />
                 <Route path="*"              element={<Navigate to="/projects" replace />} />
               </Route>
             </Route>

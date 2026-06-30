@@ -54,6 +54,9 @@ class Project(Base):
     reminders = relationship("Reminder", back_populates="project", cascade="all, delete-orphan")
     plot_outline = relationship("PlotOutline", back_populates="project", uselist=False, cascade="all, delete-orphan")
     dimensions = relationship("Dimension", back_populates="project", cascade="all, delete-orphan")
+    cover_url = Column(String, nullable=True)  # НОВЕ: обкладинка проєкту
+    soundtracks = relationship("Soundtrack", back_populates="project", cascade="all, delete-orphan")
+    moodboard_images = relationship("MoodboardImage", back_populates="project", cascade="all, delete-orphan")
 
 class Faction(Base):
     __tablename__ = "factions"
@@ -361,3 +364,27 @@ class PlotOutline(Base):
     ending               = Column(Text, default="")  # Фінал
 
     project = relationship("Project", back_populates="plot_outline")
+
+
+class Soundtrack(Base):
+    __tablename__ = "soundtracks"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    project_id  = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    title       = Column(String, nullable=False)
+    artist      = Column(String, nullable=True)
+    url         = Column(String, nullable=False)
+    note        = Column(Text, default="")
+
+    project = relationship("Project", back_populates="soundtracks")
+
+
+class MoodboardImage(Base):
+    __tablename__ = "moodboard_images"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    project_id  = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    image_url   = Column(String, nullable=False)
+    caption     = Column(Text, default="")
+
+    project = relationship("Project", back_populates="moodboard_images")

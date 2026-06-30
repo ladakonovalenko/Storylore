@@ -10,6 +10,7 @@ COLUMNS_TO_ENSURE = [
     ("events", "arc_id", "INTEGER"),
     ("events", "branch_id", "INTEGER"),
     ("locations", "dimension_id", "INTEGER"),
+    ("projects", "cover_url", "VARCHAR"),
 ]
 
 

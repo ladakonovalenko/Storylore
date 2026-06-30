@@ -14,6 +14,7 @@ import InkStroke from '../components/layout/InkStroke'
 function EditProjectForm({ initial, onSubmit, onCancel, isSubmitting }) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
+  const [coverUrl, setCoverUrl] = useState(initial?.cover_url ?? '')
   const [touched, setTouched] = useState(false)
 
   const inputCls =
@@ -23,7 +24,11 @@ function EditProjectForm({ initial, onSubmit, onCancel, isSubmitting }) {
     e.preventDefault()
     setTouched(true)
     if (!title.trim()) return
-    onSubmit({ title: title.trim(), description: description.trim() || null })
+    onSubmit({
+      title: title.trim(),
+      description: description.trim() || null,
+      cover_url: coverUrl.trim() || null,
+    })
   }
 
   return (
@@ -52,6 +57,21 @@ function EditProjectForm({ initial, onSubmit, onCancel, isSubmitting }) {
           className={`${inputCls} resize-none`}
         />
       </label>
+
+      {/* НОВЕ: обкладинка */}
+      <label className="block text-sm text-parchment-dim">
+        Обкладинка (посилання на зображення)
+        <input
+          type="text"
+          value={coverUrl}
+          onChange={(e) => setCoverUrl(e.target.value)}
+          placeholder="https://i.pinimg.com/…"
+          className={inputCls}
+        />
+      </label>
+      {coverUrl && (
+        <img src={coverUrl} alt="" className="h-24 w-full rounded-md border border-ink-500 object-cover" />
+      )}
 
       <div className="mt-2 flex justify-end gap-2">
         <button

@@ -1328,6 +1328,84 @@ def update_plot_outline(project_id: int, payload: schemas.PlotOutlineUpdate, db:
 
 
 # ==========================================
+# 🎵 САУНДТРЕК
+# ==========================================
+@router.post("/soundtracks", response_model=schemas.SoundtrackResponse, tags=["Media"])
+def create_soundtrack(payload: schemas.SoundtrackCreate, db: Session = Depends(get_db)):
+    db_track = models.Soundtrack(**payload.model_dump())
+    db.add(db_track)
+    db.commit()
+    db.refresh(db_track)
+    return db_track
+
+
+@router.get("/projects/{project_id}/soundtracks", response_model=List[schemas.SoundtrackResponse], tags=["Media"])
+def get_project_soundtracks(project_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Soundtrack).filter(models.Soundtrack.project_id == project_id).all()
+
+
+@router.put("/soundtracks/{track_id}", response_model=schemas.SoundtrackResponse, tags=["Media"])
+def update_soundtrack(track_id: int, payload: schemas.SoundtrackUpdate, db: Session = Depends(get_db)):
+    db_track = db.query(models.Soundtrack).filter(models.Soundtrack.id == track_id).first()
+    if not db_track:
+        raise HTTPException(status_code=404, detail="Трек не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_track, key, value)
+    db.commit()
+    db.refresh(db_track)
+    return db_track
+
+
+@router.delete("/soundtracks/{track_id}", tags=["Media"])
+def delete_soundtrack(track_id: int, db: Session = Depends(get_db)):
+    db_track = db.query(models.Soundtrack).filter(models.Soundtrack.id == track_id).first()
+    if not db_track:
+        raise HTTPException(status_code=404, detail="Трек не знайдено")
+    db.delete(db_track)
+    db.commit()
+    return {"detail": "Трек видалено"}
+
+
+# ==========================================
+# 🖼️ МУДБОРД
+# ==========================================
+@router.post("/moodboard-images", response_model=schemas.MoodboardImageResponse, tags=["Media"])
+def create_moodboard_image(payload: schemas.MoodboardImageCreate, db: Session = Depends(get_db)):
+    db_img = models.MoodboardImage(**payload.model_dump())
+    db.add(db_img)
+    db.commit()
+    db.refresh(db_img)
+    return db_img
+
+
+@router.get("/projects/{project_id}/moodboard-images", response_model=List[schemas.MoodboardImageResponse], tags=["Media"])
+def get_project_moodboard_images(project_id: int, db: Session = Depends(get_db)):
+    return db.query(models.MoodboardImage).filter(models.MoodboardImage.project_id == project_id).all()
+
+
+@router.put("/moodboard-images/{image_id}", response_model=schemas.MoodboardImageResponse, tags=["Media"])
+def update_moodboard_image(image_id: int, payload: schemas.MoodboardImageUpdate, db: Session = Depends(get_db)):
+    db_img = db.query(models.MoodboardImage).filter(models.MoodboardImage.id == image_id).first()
+    if not db_img:
+        raise HTTPException(status_code=404, detail="Зображення не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_img, key, value)
+    db.commit()
+    db.refresh(db_img)
+    return db_img
+
+
+@router.delete("/moodboard-images/{image_id}", tags=["Media"])
+def delete_moodboard_image(image_id: int, db: Session = Depends(get_db)):
+    db_img = db.query(models.MoodboardImage).filter(models.MoodboardImage.id == image_id).first()
+    if not db_img:
+        raise HTTPException(status_code=404, detail="Зображення не знайдено")
+    db.delete(db_img)
+    db.commit()
+    return {"detail": "Зображення видалено"}
+
+
+# ==========================================
 # 📂 ПРОЄКТИ
 # ==========================================
 @router.post("/projects", response_model=schemas.ProjectResponse, tags=["Projects"])

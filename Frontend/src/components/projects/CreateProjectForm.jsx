@@ -4,6 +4,8 @@ import { Loader2 } from 'lucide-react'
 export default function CreateProjectForm({ onSubmit, onCancel, isSubmitting }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  // НОВЕ: обкладинка проєкту
+  const [coverUrl, setCoverUrl] = useState('')
   const [touched, setTouched] = useState(false)
 
   const isTitleEmpty = title.trim() === ''
@@ -12,7 +14,11 @@ export default function CreateProjectForm({ onSubmit, onCancel, isSubmitting }) 
     e.preventDefault()
     setTouched(true)
     if (isTitleEmpty) return
-    onSubmit({ title: title.trim(), description: description.trim() || undefined })
+    onSubmit({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      cover_url: coverUrl.trim() || undefined,
+    })
   }
 
   return (
@@ -43,6 +49,20 @@ export default function CreateProjectForm({ onSubmit, onCancel, isSubmitting }) 
           className="mt-1 w-full resize-none rounded-md border border-ink-500 bg-ink-900 px-3 py-2 text-parchment placeholder:text-parchment-dim/50 focus:border-amber-ink focus:outline-none"
         />
       </label>
+
+      {/* НОВЕ: поле обкладинки з живим прев'ю */}
+      <label className="mt-4 block text-sm text-parchment-dim">
+        Обкладинка (посилання на зображення, необов&rsquo;язково)
+        <input
+          value={coverUrl}
+          onChange={(e) => setCoverUrl(e.target.value)}
+          placeholder="https://i.pinimg.com/…"
+          className="mt-1 w-full rounded-md border border-ink-500 bg-ink-900 px-3 py-2 text-parchment placeholder:text-parchment-dim/50 focus:border-amber-ink focus:outline-none"
+        />
+      </label>
+      {coverUrl && (
+        <img src={coverUrl} alt="" className="mt-2 h-24 w-full rounded-md border border-ink-500 object-cover" />
+      )}
 
       <div className="mt-5 flex justify-end gap-2">
         <button

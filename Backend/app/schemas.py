@@ -468,15 +468,18 @@ class BranchResponse(BaseModel):
 class ProjectCreate(BaseModel):
     title:       str
     description: Optional[str] = None
+    cover_url: Optional[str] = None
 
 class ProjectUpdate(BaseModel):
     title:       Optional[str] = None
     description: Optional[str] = None
+    cover_url: Optional[str] = None
 
 class ProjectResponse(BaseModel):
     id:          int
     title:       str
     description: Optional[str] = None
+    cover_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -571,4 +574,45 @@ class DimensionResponse(BaseModel):
     name: str
     description: Optional[str] = None
     color: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+# --- САУНДТРЕК ---
+class SoundtrackCreate(BaseModel):
+    project_id: int
+    title: str
+    artist: Optional[str] = None
+    url: str
+    note: Optional[str] = None
+
+class SoundtrackUpdate(BaseModel):
+    title: Optional[str] = None
+    artist: Optional[str] = None
+    url: Optional[str] = None
+    note: Optional[str] = None
+
+class SoundtrackResponse(BaseModel):
+    id: int
+    project_id: int
+    title: str
+    artist: Optional[str] = None
+    url: str
+    note: Optional[str] = ""
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- МУДБОРД ---
+class MoodboardImageCreate(BaseModel):
+    project_id: int
+    image_url: str
+    caption: Optional[str] = None
+
+class MoodboardImageUpdate(BaseModel):
+    image_url: Optional[str] = None
+    caption: Optional[str] = None
+
+class MoodboardImageResponse(BaseModel):
+    id: int
+    project_id: int
+    image_url: str
+    caption: Optional[str] = ""
     model_config = ConfigDict(from_attributes=True)
