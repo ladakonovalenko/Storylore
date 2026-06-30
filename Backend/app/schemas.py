@@ -616,3 +616,24 @@ class MoodboardImageResponse(BaseModel):
     image_url: str
     caption: Optional[str] = ""
     model_config = ConfigDict(from_attributes=True)
+
+# --- СТРУКТУРА (довільні блоки) ---
+class StructureBlockCreate(BaseModel):
+    project_id: int
+    title: Optional[str] = "Новий блок"
+    content: Optional[str] = ""
+
+class StructureBlockUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+
+class StructureBlockReorder(BaseModel):
+    block_ids: List[int]  # повний список id у новому порядку
+
+class StructureBlockResponse(BaseModel):
+    id: int
+    project_id: int
+    title: str
+    content: Optional[str] = ""
+    order_index: int
+    model_config = ConfigDict(from_attributes=True)

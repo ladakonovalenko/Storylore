@@ -57,6 +57,7 @@ class Project(Base):
     cover_url = Column(String, nullable=True)  # НОВЕ: обкладинка проєкту
     soundtracks = relationship("Soundtrack", back_populates="project", cascade="all, delete-orphan")
     moodboard_images = relationship("MoodboardImage", back_populates="project", cascade="all, delete-orphan")
+    structure_blocks = relationship("StructureBlock", back_populates="project", cascade="all, delete-orphan")
 
 class Faction(Base):
     __tablename__ = "factions"
@@ -388,3 +389,14 @@ class MoodboardImage(Base):
     caption     = Column(Text, default="")
 
     project = relationship("Project", back_populates="moodboard_images")
+
+class StructureBlock(Base):
+    __tablename__ = "structure_blocks"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    project_id  = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    title       = Column(String, default="Новий блок")
+    content     = Column(Text, default="")
+    order_index = Column(Integer, default=0)
+
+    project = relationship("Project", back_populates="structure_blocks")

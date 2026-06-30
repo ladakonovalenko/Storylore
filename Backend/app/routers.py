@@ -1404,6 +1404,67 @@ def delete_moodboard_image(image_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"detail": "Зображення видалено"}
 
+# ==========================================
+# 🧩 СТРУКТУРА (довільні рухомі блоки)
+# ==========================================
+@router.post("/structure-blocks", response_model=schemas.StructureBlockResponse, tags=["Structure"])
+def create_structure_block(payload: schemas.StructureBlockCreate, db: Session = Depends(get_db)):
+    max_order = db.query(models.StructureBlock).filter(
+        models.StructureBlock.project_id == payload.project_id
+    ).count()
+    db_block = models.StructureBlock(**payload.model_dump(), order_index=max_order)
+    db.add(db_block)
+    db.commit()
+    db.refresh(db_block)
+    return db_block
+
+
+@router.get("/projects/{project_id}/structure-blocks", response_model=List[schemas.StructureBlockResponse], tags=["Structure"])
+def get_project_structure_blocks(project_id: int, db: Session = Depends(get_db)):
+    return (
+        db.query(models.StructureBlock)
+        .filter(models.StructureBlock.project_id == project_id)
+        .order_by(models.StructureBlock.order_index)
+        .all()
+    )
+
+
+@router.put("/structure-blocks/{block_id}", response_model=schemas.StructureBlockResponse, tags=["Structure"])
+def update_structure_block(block_id: int, payload: schemas.StructureBlockUpdate, db: Session = Depends(get_db)):
+    db_block = db.query(models.StructureBlock).filter(models.StructureBlock.id == block_id).first()
+    if not db_block:
+        raise HTTPException(status_code=404, detail="Блок не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_block, key, value)
+    db.commit()
+    db.refresh(db_block)
+    return db_block
+
+
+@router.delete("/structure-blocks/{block_id}", tags=["Structure"])
+def delete_structure_block(block_id: int, db: Session = Depends(get_db)):
+    db_block = db.query(models.StructureBlock).filter(models.StructureBlock.id == block_id).first()
+    if not db_block:
+        raise HTTPException(status_code=404, detail="Блок не знайдено")
+    db.delete(db_block)
+    db.commit()
+    return {"detail": "Блок видалено"}
+
+
+@router.put("/projects/{project_id}/structure-blocks/reorder", response_model=List[schemas.StructureBlockResponse], tags=["Structure"])
+def reorder_structure_blocks(project_id: int, payload: schemas.StructureBlockReorder, db: Session = Depends(get_db)):
+    for index, block_id in enumerate(payload.block_ids):
+        db.query(models.StructureBlock).filter(
+            models.StructureBlock.id == block_id,
+            models.StructureBlock.project_id == project_id,
+        ).update({"order_index": index}, synchronize_session=False)
+    db.commit()
+    return (
+        db.query(models.StructureBlock)
+        .filter(models.StructureBlock.project_id == project_id)
+        .order_by(models.StructureBlock.order_index)
+        .all()
+    )
 
 # ==========================================
 # 📂 ПРОЄКТИ
