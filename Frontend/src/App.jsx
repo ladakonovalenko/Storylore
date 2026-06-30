@@ -21,6 +21,7 @@ import RemindersPage    from './pages/RemindersPage'
 import PlotOutlinePage  from './pages/PlotOutlinePage'
 import AtmospherePage   from './pages/AtmospherePage'
 import StructurePage    from './pages/StructurePage'
+import CustomPageDetail from './pages/CustomPageDetail'
 
 export default function App() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
                 <Route path="/plot-outline"  element={<PlotOutlinePage />} />
                 <Route path="/atmosphere"    element={<AtmospherePage />} />
                 <Route path="/structure"     element={<StructurePage />} />
+                <Route path="/page/:pageId"  element={<CustomPageDetail />} />
                 <Route path="*"              element={<Navigate to="/projects" replace />} />
               </Route>
             </Route>
