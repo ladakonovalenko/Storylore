@@ -58,6 +58,7 @@ class Project(Base):
     soundtracks = relationship("Soundtrack", back_populates="project", cascade="all, delete-orphan")
     moodboard_images = relationship("MoodboardImage", back_populates="project", cascade="all, delete-orphan")
     structure_blocks = relationship("StructureBlock", back_populates="project", cascade="all, delete-orphan")
+    custom_pages = relationship("CustomPage", back_populates="project", cascade="all, delete-orphan")
 
 class Faction(Base):
     __tablename__ = "factions"
@@ -400,3 +401,49 @@ class StructureBlock(Base):
     order_index = Column(Integer, default=0)
 
     project = relationship("Project", back_populates="structure_blocks")
+
+class CustomPage(Base):
+    __tablename__ = "custom_pages"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    project_id  = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    title       = Column(String, nullable=False, default="Нова сторінка")
+    order_index = Column(Integer, default=0)
+
+    project = relationship("Project", back_populates="custom_pages")
+    blocks  = relationship("CustomPageBlock", back_populates="page", cascade="all, delete-orphan")
+
+
+class CustomPageBlock(Base):
+    __tablename__ = "custom_page_blocks"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    page_id     = Column(Integer, ForeignKey("custom_pages.id", ondelete="CASCADE"), index=True)
+    title       = Column(String, default="Новий блок")
+    content     = Column(Text, default="")
+    order_index = Column(Integer, default=0)
+
+    page = relationship("CustomPage", back_populates="blocks")
+
+
+class NavFolder(Base):
+    __tablename__ = "nav_folders"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    user_id     = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name        = Column(String, nullable=False)
+    order_index = Column(Integer, default=0)
+
+    items = relationship("NavItem", back_populates="folder", cascade="all, delete-orphan")
+
+
+class NavItem(Base):
+    __tablename__ = "nav_items"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    folder_id   = Column(Integer, ForeignKey("nav_folders.id", ondelete="CASCADE"), index=True)
+    item_type   = Column(String, nullable=False)   # 'built_in' | 'custom_page'
+    item_key    = Column(String, nullable=False)   # для built_in: 'atmosphere'/'reminders'/...; для custom_page: id сторінки
+    order_index = Column(Integer, default=0)
+
+    folder = relationship("NavFolder", back_populates="items")

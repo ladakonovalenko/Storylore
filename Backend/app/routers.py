@@ -1466,6 +1466,230 @@ def reorder_structure_blocks(project_id: int, payload: schemas.StructureBlockReo
         .all()
     )
 
+
+# ==========================================
+# 📄 ВЛАСНІ СТОРІНКИ (Custom Pages)
+# ==========================================
+@router.post("/custom-pages", response_model=schemas.CustomPageResponse, tags=["CustomPages"])
+def create_custom_page(payload: schemas.CustomPageCreate, db: Session = Depends(get_db)):
+    max_order = db.query(models.CustomPage).filter(models.CustomPage.project_id == payload.project_id).count()
+    db_page = models.CustomPage(**payload.model_dump(), order_index=max_order)
+    db.add(db_page)
+    db.commit()
+    db.refresh(db_page)
+    return db_page
+
+
+@router.get("/projects/{project_id}/custom-pages", response_model=List[schemas.CustomPageResponse], tags=["CustomPages"])
+def get_project_custom_pages(project_id: int, db: Session = Depends(get_db)):
+    return (
+        db.query(models.CustomPage)
+        .filter(models.CustomPage.project_id == project_id)
+        .order_by(models.CustomPage.order_index)
+        .all()
+    )
+
+
+@router.put("/custom-pages/{page_id}", response_model=schemas.CustomPageResponse, tags=["CustomPages"])
+def update_custom_page(page_id: int, payload: schemas.CustomPageUpdate, db: Session = Depends(get_db)):
+    db_page = db.query(models.CustomPage).filter(models.CustomPage.id == page_id).first()
+    if not db_page:
+        raise HTTPException(status_code=404, detail="Сторінку не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_page, key, value)
+    db.commit()
+    db.refresh(db_page)
+    return db_page
+
+
+@router.delete("/custom-pages/{page_id}", tags=["CustomPages"])
+def delete_custom_page(page_id: int, db: Session = Depends(get_db)):
+    db_page = db.query(models.CustomPage).filter(models.CustomPage.id == page_id).first()
+    if not db_page:
+        raise HTTPException(status_code=404, detail="Сторінку не знайдено")
+    db.delete(db_page)
+    db.commit()
+    return {"detail": "Сторінку видалено"}
+
+
+@router.post("/custom-page-blocks", response_model=schemas.CustomPageBlockResponse, tags=["CustomPages"])
+def create_custom_page_block(payload: schemas.CustomPageBlockCreate, db: Session = Depends(get_db)):
+    max_order = db.query(models.CustomPageBlock).filter(models.CustomPageBlock.page_id == payload.page_id).count()
+    db_block = models.CustomPageBlock(**payload.model_dump(), order_index=max_order)
+    db.add(db_block)
+    db.commit()
+    db.refresh(db_block)
+    return db_block
+
+
+@router.get("/custom-pages/{page_id}/blocks", response_model=List[schemas.CustomPageBlockResponse], tags=["CustomPages"])
+def get_custom_page_blocks(page_id: int, db: Session = Depends(get_db)):
+    return (
+        db.query(models.CustomPageBlock)
+        .filter(models.CustomPageBlock.page_id == page_id)
+        .order_by(models.CustomPageBlock.order_index)
+        .all()
+    )
+
+
+@router.put("/custom-page-blocks/{block_id}", response_model=schemas.CustomPageBlockResponse, tags=["CustomPages"])
+def update_custom_page_block(block_id: int, payload: schemas.CustomPageBlockUpdate, db: Session = Depends(get_db)):
+    db_block = db.query(models.CustomPageBlock).filter(models.CustomPageBlock.id == block_id).first()
+    if not db_block:
+        raise HTTPException(status_code=404, detail="Блок не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_block, key, value)
+    db.commit()
+    db.refresh(db_block)
+    return db_block
+
+
+@router.delete("/custom-page-blocks/{block_id}", tags=["CustomPages"])
+def delete_custom_page_block(block_id: int, db: Session = Depends(get_db)):
+    db_block = db.query(models.CustomPageBlock).filter(models.CustomPageBlock.id == block_id).first()
+    if not db_block:
+        raise HTTPException(status_code=404, detail="Блок не знайдено")
+    db.delete(db_block)
+    db.commit()
+    return {"detail": "Блок видалено"}
+
+
+@router.put("/custom-pages/{page_id}/blocks/reorder", response_model=List[schemas.CustomPageBlockResponse], tags=["CustomPages"])
+def reorder_custom_page_blocks(page_id: int, payload: schemas.CustomPageBlockReorder, db: Session = Depends(get_db)):
+    for index, block_id in enumerate(payload.block_ids):
+        db.query(models.CustomPageBlock).filter(
+            models.CustomPageBlock.id == block_id,
+            models.CustomPageBlock.page_id == page_id,
+        ).update({"order_index": index}, synchronize_session=False)
+    db.commit()
+    return (
+        db.query(models.CustomPageBlock)
+        .filter(models.CustomPageBlock.page_id == page_id)
+        .order_by(models.CustomPageBlock.order_index)
+        .all()
+    )
+
+
+# ==========================================
+# 🗂️ ПАПКИ НАВІГАЦІЇ (особисті, прив'язані до користувача)
+# ==========================================
+@router.post("/nav-folders", response_model=schemas.NavFolderResponse, tags=["Navigation"])
+def create_nav_folder(
+    payload: schemas.NavFolderCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    max_order = db.query(models.NavFolder).filter(models.NavFolder.user_id == current_user.id).count()
+    db_folder = models.NavFolder(name=payload.name, user_id=current_user.id, order_index=max_order)
+    db.add(db_folder)
+    db.commit()
+    db.refresh(db_folder)
+    return db_folder
+
+
+@router.get("/nav-folders", response_model=List[schemas.NavFolderResponse], tags=["Navigation"])
+def get_nav_folders(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return (
+        db.query(models.NavFolder)
+        .filter(models.NavFolder.user_id == current_user.id)
+        .order_by(models.NavFolder.order_index)
+        .all()
+    )
+
+
+@router.put("/nav-folders/{folder_id}", response_model=schemas.NavFolderResponse, tags=["Navigation"])
+def update_nav_folder(
+    folder_id: int,
+    payload: schemas.NavFolderUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_folder = db.query(models.NavFolder).filter(
+        models.NavFolder.id == folder_id, models.NavFolder.user_id == current_user.id
+    ).first()
+    if not db_folder:
+        raise HTTPException(status_code=404, detail="Папку не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_folder, key, value)
+    db.commit()
+    db.refresh(db_folder)
+    return db_folder
+
+
+@router.delete("/nav-folders/{folder_id}", tags=["Navigation"])
+def delete_nav_folder(
+    folder_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_folder = db.query(models.NavFolder).filter(
+        models.NavFolder.id == folder_id, models.NavFolder.user_id == current_user.id
+    ).first()
+    if not db_folder:
+        raise HTTPException(status_code=404, detail="Папку не знайдено")
+    db.delete(db_folder)
+    db.commit()
+    return {"detail": "Папку видалено"}
+
+
+@router.post("/nav-folders/{folder_id}/items", response_model=schemas.NavItemResponse, tags=["Navigation"])
+def add_nav_item(
+    folder_id: int,
+    payload: schemas.NavItemCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_folder = db.query(models.NavFolder).filter(
+        models.NavFolder.id == folder_id, models.NavFolder.user_id == current_user.id
+    ).first()
+    if not db_folder:
+        raise HTTPException(status_code=404, detail="Папку не знайдено")
+    max_order = db.query(models.NavItem).filter(models.NavItem.folder_id == folder_id).count()
+    db_item = models.NavItem(folder_id=folder_id, item_type=payload.item_type, item_key=payload.item_key, order_index=max_order)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+@router.put("/nav-items/{item_id}", response_model=schemas.NavItemResponse, tags=["Navigation"])
+def update_nav_item(
+    item_id: int,
+    payload: schemas.NavItemUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_item = db.query(models.NavItem).join(models.NavFolder).filter(
+        models.NavItem.id == item_id, models.NavFolder.user_id == current_user.id
+    ).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Елемент не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_item, key, value)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+@router.delete("/nav-items/{item_id}", tags=["Navigation"])
+def delete_nav_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_item = db.query(models.NavItem).join(models.NavFolder).filter(
+        models.NavItem.id == item_id, models.NavFolder.user_id == current_user.id
+    ).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Елемент не знайдено")
+    db.delete(db_item)
+    db.commit()
+    return {"detail": "Видалено з папки"}
+
+
 # ==========================================
 # 📂 ПРОЄКТИ
 # ==========================================

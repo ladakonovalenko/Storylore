@@ -637,3 +637,70 @@ class StructureBlockResponse(BaseModel):
     content: Optional[str] = ""
     order_index: int
     model_config = ConfigDict(from_attributes=True)
+
+# --- ВЛАСНІ СТОРІНКИ ---
+class CustomPageCreate(BaseModel):
+    project_id: int
+    title: str = "Нова сторінка"
+
+class CustomPageUpdate(BaseModel):
+    title: Optional[str] = None
+
+class CustomPageResponse(BaseModel):
+    id: int
+    project_id: int
+    title: str
+    order_index: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomPageBlockCreate(BaseModel):
+    page_id: int
+    title: Optional[str] = "Новий блок"
+    content: Optional[str] = ""
+
+class CustomPageBlockUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+
+class CustomPageBlockReorder(BaseModel):
+    block_ids: List[int]
+
+class CustomPageBlockResponse(BaseModel):
+    id: int
+    page_id: int
+    title: str
+    content: Optional[str] = ""
+    order_index: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- ПАПКИ НАВІГАЦІЇ ---
+class NavItemCreate(BaseModel):
+    item_type: str   # 'built_in' | 'custom_page'
+    item_key: str
+
+class NavItemUpdate(BaseModel):
+    order_index: Optional[int] = None
+
+class NavItemResponse(BaseModel):
+    id: int
+    folder_id: int
+    item_type: str
+    item_key: str
+    order_index: int
+    model_config = ConfigDict(from_attributes=True)
+
+class NavFolderCreate(BaseModel):
+    name: str
+
+class NavFolderUpdate(BaseModel):
+    name: Optional[str] = None
+    order_index: Optional[int] = None
+
+class NavFolderResponse(BaseModel):
+    id: int
+    name: str
+    order_index: int
+    items: List[NavItemResponse] = []
+    model_config = ConfigDict(from_attributes=True)
