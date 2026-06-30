@@ -12,6 +12,7 @@ import { getProjectDimensions } from '../api/dimensions'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import InkStroke from '../components/layout/InkStroke'
+import LinkedText from '../components/common/LinkedText'
 import DimensionManager from '../components/worldmap/DimensionManager'
 import WorldMapCanvas, { LOCATION_TYPE_COLORS, LOCATION_REL_TYPE_COLORS } from '../components/worldmap/WorldMapCanvas'
 
@@ -191,7 +192,7 @@ function LocationDetailPanel({ location, dimensions, onClose, onEdit, onDelete }
       </div>
 
       <p className="text-sm text-parchment-dim">
-        {location.description || <span className="italic text-parchment-dim/60">Без опису</span>}
+        {location.description ? <LinkedText text={location.description} className="whitespace-pre-wrap" /> : <span className="italic text-parchment-dim/60">Без опису</span>}
       </p>
 
       <div className="flex justify-end gap-2 border-t border-ink-500 pt-3">

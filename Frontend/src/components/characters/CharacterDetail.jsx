@@ -8,6 +8,7 @@ import ProgressBar from './ProgressBar'
 import RadarChart from './RadarChart'
 import ConfirmDialog from '../common/ConfirmDialog'
 import InkStroke from '../layout/InkStroke'
+import LinkedText from '../common/LinkedText'
 
 // ВИПРАВЛЕНО: статус тепер зберігається й порівнюється як український рядок —
 // саме так його записує CharacterForm.jsx ('Живий'/'Загиблий'/'Невідомо'),
@@ -120,11 +121,11 @@ function InlineField({ label, value, fieldKey, type = 'text', onSave, isSaving }
         </div>
       ) : (
         <p
-          className="min-h-[1.5rem] cursor-text text-sm text-parchment"
+          className="min-h-[1.5rem] cursor-text whitespace-pre-wrap text-sm text-parchment"
           onDoubleClick={() => { setDraft(value ?? ''); setEditing(true) }}
           title="Двічі клацніть для редагування"
         >
-          {value || <span className="italic text-parchment-dim/60">Не вказано</span>}
+          {value ? <LinkedText text={value} /> : <span className="italic text-parchment-dim/60">Не вказано</span>}
         </p>
       )}
     </div>

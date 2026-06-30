@@ -2,6 +2,7 @@ import { X, Edit3, Trash2, Users, Shield, Map, Download } from 'lucide-react'
 import InkStroke from '../layout/InkStroke'
 import { downloadTextFile } from '../../utils/fileDownload'
 import { buildArticleMarkdown } from '../../utils/wikiExport'
+import LinkedText from '../common/LinkedText'
 
 const CATEGORY_COLORS = {
   'Магічна система':       '#7F77DD',
@@ -72,7 +73,7 @@ export default function WikiArticleDetail({ article, characters, factions, locat
       </div>
 
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-parchment">
-        {article.content || <span className="italic text-parchment-dim/60">Без тексту</span>}
+        {article.content ? <LinkedText text={article.content} /> : <span className="italic text-parchment-dim/60">Без тексту</span>}
       </p>
 
       {article.links?.length > 0 && (

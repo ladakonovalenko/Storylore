@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Shield, Edit3, Trash2, Check, Loader2, X, Users } from 'lucide-react'
 import InkStroke from '../layout/InkStroke'
+import LinkedText from '../common/LinkedText'
 
 export default function FactionCard({ faction, characters = [], onEdit, onAssignCharacters, onDelete }) {
   const name        = faction.name        || faction.title   || 'Без назви'
@@ -183,7 +184,7 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
       <InkStroke className="mt-1" width={60} color="var(--ink-500)" />
 
       {description ? (
-        <p className="mt-2 line-clamp-3 text-sm text-parchment-dim">{description}</p>
+        <p className="mt-2 line-clamp-3 text-sm text-parchment-dim"><LinkedText text={description} /></p>
       ) : (
         <p className="mt-2 text-sm italic text-parchment-dim/60">Без опису</p>
       )}

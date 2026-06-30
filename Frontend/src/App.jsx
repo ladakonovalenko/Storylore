@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider }    from './context/AuthContext'
 import { ProjectProvider } from './context/ProjectContext'
 import { ThemeProvider }   from './context/ThemeContext'
+import { EntityRegistryProvider } from './context/EntityRegistryContext'
 import ProtectedRoute  from './components/common/ProtectedRoute'
 import Layout          from './components/layout/Layout'
 import LoginPage       from './pages/LoginPage'
@@ -26,6 +27,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <ProjectProvider>
+          <EntityRegistryProvider>
           <Toaster
             position="top-right"
             toastOptions={{
@@ -63,6 +65,7 @@ export default function App() {
               </Route>
             </Route>
           </Routes>
+          </EntityRegistryProvider>
         </ProjectProvider>
       </AuthProvider>
     </ThemeProvider>
