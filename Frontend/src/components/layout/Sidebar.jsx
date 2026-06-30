@@ -67,15 +67,21 @@ export default function Sidebar() {
     if (!activeProjectId) { setCustomPages([]); return }
     try {
       const data = await getProjectCustomPages(activeProjectId)
-      setCustomPages(data)
-    } catch { /* мовчки ігноруємо в навігації */ }
+      // ЗАХИСТ: бекенд має повертати масив, але якщо щось пішло не так — не падаємо
+      setCustomPages(Array.isArray(data) ? data : [])
+    } catch {
+      setCustomPages([]) // мовчки ігноруємо в навігації
+    }
   }, [activeProjectId])
 
   const loadFolders = useCallback(async () => {
     try {
       const data = await getNavFolders()
-      setFolders(data)
-    } catch { /* мовчки ігноруємо в навігації */ }
+      // ЗАХИСТ: те саме для папок
+      setFolders(Array.isArray(data) ? data : [])
+    } catch {
+      setFolders([]) // мовчки ігноруємо в навігації
+    }
   }, [])
 
   useEffect(() => { loadCustomPages() }, [loadCustomPages])
@@ -85,11 +91,12 @@ export default function Sidebar() {
 
   // НОВЕ: ключі фіксованих пунктів і id власних сторінок, що вже призначені в якусь папку —
   // їх треба прибрати зі звичайного списку, бо вони показуються всередині своєї папки
+  // ЗАХИСТ: (f.items || []) на випадок, якщо бекенд поверне папку без items
   const assignedBuiltInKeys = new Set(
-    folders.flatMap((f) => f.items.filter((i) => i.item_type === 'built_in').map((i) => i.item_key))
+    folders.flatMap((f) => (f.items || []).filter((i) => i.item_type === 'built_in').map((i) => i.item_key))
   )
   const assignedCustomPageIds = new Set(
-    folders.flatMap((f) => f.items.filter((i) => i.item_type === 'custom_page').map((i) => i.item_key))
+    folders.flatMap((f) => (f.items || []).filter((i) => i.item_type === 'custom_page').map((i) => i.item_key))
   )
 
   const ungroupedBaseItems = BASE_NAV_ITEMS.filter((item) => !assignedBuiltInKeys.has(item.key))
@@ -127,7 +134,8 @@ export default function Sidebar() {
         {/* НОВЕ: папки */}
         {folders.map((folder) => {
           const isOpen = !!expandedFolders[folder.id]
-          const isFolderActive = folder.items.some((item) => {
+          const folderItems = folder.items || []
+          const isFolderActive = folderItems.some((item) => {
             const { to } = resolveItemLabelIcon(item)
             return location.pathname === to
           })
@@ -145,10 +153,10 @@ export default function Sidebar() {
               </button>
               {isOpen && (
                 <div className="ml-4 flex flex-col gap-0.5 border-l border-ink-500 pl-2">
-                  {folder.items.length === 0 ? (
+                  {folderItems.length === 0 ? (
                     <p className="px-3 py-1 text-xs italic text-parchment-dim/50">Порожньо</p>
                   ) : (
-                    folder.items.map((item) => {
+                    folderItems.map((item) => {
                       const { label, icon, to } = resolveItemLabelIcon(item)
                       return <NavItemLink key={item.id} to={to} label={label} icon={icon} />
                     })
