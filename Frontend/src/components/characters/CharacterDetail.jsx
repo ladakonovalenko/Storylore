@@ -9,20 +9,20 @@ import RadarChart from './RadarChart'
 import ConfirmDialog from '../common/ConfirmDialog'
 import InkStroke from '../layout/InkStroke'
 
+// ВИПРАВЛЕНО: статус тепер зберігається й порівнюється як український рядок —
+// саме так його записує CharacterForm.jsx ('Живий'/'Загиблий'/'Невідомо'),
+// тому ключі STATUS_MAP мають з ним збігатися, інакше статус завжди "застрягав" на Невідомо
 const STATUS_MAP = {
-  alive:    { label: 'Живий',    cls: 'text-moss-soft bg-moss-dim/20 ring-moss-soft' },
-  deceased: { label: 'Загиблий', cls: 'text-crimson-soft bg-crimson-dim/20 ring-crimson-soft' },
-  unknown:  { label: 'Невідомо', cls: 'text-parchment-dim bg-ink-500/40 ring-ink-300' },
+  'Живий':    { label: 'Живий',    cls: 'text-moss-soft bg-moss-dim/20 ring-moss-soft' },
+  'Загиблий': { label: 'Загиблий', cls: 'text-crimson-soft bg-crimson-dim/20 ring-crimson-soft' },
+  'Невідомо': { label: 'Невідомо', cls: 'text-parchment-dim bg-ink-500/40 ring-ink-300' },
 }
 const STATUS_OPTIONS = [
-  { value: 'alive',    label: 'Живий' },
-  { value: 'deceased', label: 'Загиблий' },
-  { value: 'unknown',  label: 'Невідомо' },
+  { value: 'Живий',    label: 'Живий' },
+  { value: 'Загиблий', label: 'Загиблий' },
+  { value: 'Невідомо', label: 'Невідомо' },
 ]
 
-// ВИПРАВЛЕНО: ключі тепер відповідають назвам колонок у моделі Character (models.py)
-// background -> biography
-// motivation -> motivation_goals
 const BASE_DETAIL_FIELDS = [
   { key: 'description',      label: 'Опис',         type: 'textarea' },
   { key: 'biography',        label: 'Передісторія', type: 'textarea' },
@@ -30,9 +30,37 @@ const BASE_DETAIL_FIELDS = [
   { key: 'motivation_goals', label: 'Мотивація',    type: 'textarea' },
   { key: 'notes',            label: 'Нотатки',      type: 'textarea' },
 ]
+
+// НОВЕ: решта полів анкети — раніше редагувались лише при створенні персонажа,
+// а в деталях узагалі не показувались. Список узгоджений з ALL_FIELDS у CharacterForm.jsx.
+const EXTRA_DETAIL_FIELDS = [
+  { key: 'character_traits',          label: 'Риси характеру',          type: 'textarea' },
+  { key: 'fears_vulnerabilities',     label: 'Страхи та вразливості',   type: 'textarea' },
+  { key: 'values_beliefs',            label: 'Цінності та переконання', type: 'textarea' },
+  { key: 'self_perception',           label: 'Самосприйняття',          type: 'textarea' },
+  { key: 'traumas',                   label: 'Травми',                  type: 'textarea' },
+  { key: 'secrets',                   label: 'Таємниці',                type: 'textarea' },
+  { key: 'family_origin',             label: 'Походження',              type: 'textarea' },
+  { key: 'social_status',             label: 'Соціальний статус',       type: 'textarea' },
+  { key: 'character_arc',             label: 'Арка персонажа',          type: 'textarea' },
+  { key: 'unresolved_conflicts',      label: 'Невирішені конфлікти',    type: 'textarea' },
+  { key: 'skills',                    label: 'Навички',                 type: 'textarea' },
+  { key: 'resources',                 label: 'Ресурси',                 type: 'textarea' },
+  { key: 'physical_limitations',      label: 'Фізичні обмеження',       type: 'textarea' },
+  { key: 'psychological_limitations', label: 'Психологічні обмеження',  type: 'textarea' },
+  { key: 'habits_routines',           label: 'Звички та розпорядок',    type: 'textarea' },
+  { key: 'reputation',                label: 'Репутація',               type: 'textarea' },
+  { key: 'communication_style',       label: 'Стиль спілкування',       type: 'textarea' },
+  { key: 'allies_perception',         label: 'Сприйняття союзників',    type: 'textarea' },
+  { key: 'enemies_perception',        label: 'Сприйняття ворогів',      type: 'textarea' },
+  { key: 'contrasts',                 label: 'Контрасти',               type: 'textarea' },
+  { key: 'symbols',                   label: 'Символи',                 type: 'textarea' },
+]
+
 const SKIP_KEYS = new Set([
   'id', 'name', 'description', 'biography', 'appearance', 'motivation_goals', 'notes',
   'status', 'tags', 'template_key', 'project_id', 'created_at', 'updated_at',
+  ...EXTRA_DETAIL_FIELDS.map((f) => f.key),
 ])
 
 // ── Inline-поле ──────────────────────────────────────────────────────────────
@@ -110,10 +138,12 @@ export default function CharacterDetail({
   const [character, setCharacter] = useState(init)
   const [isSaving, setIsSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // НОВЕ: показ/приховування довгого списку додаткових полів
+  const [showAllFields, setShowAllFields] = useState(false)
 
   const { percent } = calcProgress(character, templateDetail)
   const categoryBreakdown = calcCategoryBreakdown(character)
-  const status = STATUS_MAP[character.status] ?? STATUS_MAP.unknown
+  const status = STATUS_MAP[character.status] ?? STATUS_MAP['Невідомо']
 
   const saveField = useCallback(async (key, value) => {
     setIsSaving(true)
@@ -178,7 +208,7 @@ export default function CharacterDetail({
       {/* Прогрес */}
       <ProgressBar percent={percent} />
 
-      {/* НОВЕ: радар-діаграма заповненості за категоріями */}
+      {/* Радар-діаграма заповненості за категоріями */}
       <div>
         <span className="text-xs font-medium uppercase tracking-widest text-parchment-dim/70">
           Баланс анкети
@@ -207,8 +237,6 @@ export default function CharacterDetail({
       </div>
 
       {/* Теги */}
-      {/* ВИПРАВЛЕНО: бекенд повертає tags як рядок ("маг, водяний"), а не масив —
-          тому парсимо рядок у масив перед перевіркою/рендером */}
       <div>
         <span className="text-xs font-medium uppercase tracking-widest text-parchment-dim/70">Теги</span>
         <div className="mt-1 flex flex-wrap gap-1">
@@ -236,6 +264,27 @@ export default function CharacterDetail({
             fieldKey={f.key} type={f.type} onSave={saveField} isSaving={isSaving}
           />
         ))}
+      </div>
+
+      {/* НОВЕ: перемикач і решта полів анкети */}
+      <div className="border-t border-ink-500 pt-4">
+        <button
+          onClick={() => setShowAllFields((v) => !v)}
+          className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-parchment-dim/70 hover:text-amber-soft"
+        >
+          {showAllFields ? 'Сховати решту полів' : `Показати всі поля анкети (${EXTRA_DETAIL_FIELDS.length})`}
+        </button>
+
+        {showAllFields && (
+          <div className="mt-4 flex flex-col gap-5">
+            {EXTRA_DETAIL_FIELDS.map((f) => (
+              <InlineField
+                key={f.key} label={f.label} value={character[f.key] ?? ''}
+                fieldKey={f.key} type={f.type} onSave={saveField} isSaving={isSaving}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Поля шаблону */}
