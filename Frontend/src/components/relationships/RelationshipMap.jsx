@@ -14,10 +14,12 @@ const TYPE_COLORS = {
   'Суперник':     '#EF9F27',
 }
 
-const DEFAULT_COLOR = '#888780'
+// ВИПРАВЛЕНО: нейтральний колір (коли тип зв'язку невідомий чи strength === 0)
+// тепер CSS-змінна теми замість захардкодженого сірого — контрастує коректно
+// і в темній, і в світлій темі, а не лише в темній, як було раніше.
+const DEFAULT_COLOR = 'var(--parchment-dim)'
 const CLICK_THRESHOLD = 5 // px — менше цього вважаємо кліком, а не перетягуванням
 
-// Початкове розташування вузлів по колу
 function layoutNodes(characters) {
   const cx = 400
   const cy = 300
@@ -36,15 +38,17 @@ function layoutNodes(characters) {
 
 function strengthToWidth(s) {
   const abs = Math.abs(s ?? 0)
-  return 1 + (abs / 100) * 5
+  return 1.5 + (abs / 100) * 5 // ВИПРАВЛЕНО: мінімум 1.5 замість 1
 }
 function strengthToColor(s, type) {
-  if (s === 0) return '#888780'
+  if (s === 0) return DEFAULT_COLOR
   return TYPE_COLORS[type] ?? DEFAULT_COLOR
 }
 function strengthToOpacity(s) {
   const abs = Math.abs(s ?? 0)
-  return 0.3 + (abs / 100) * 0.7
+  // ВИПРАВЛЕНО: мінімальна прозорість піднята з 0.3 до 0.55 — навіть найслабші
+  // зв'язки лишаються чіткими на світлому фоні
+  return 0.55 + (abs / 100) * 0.45
 }
 
 export default function RelationshipMap({ relationships, characters }) {
@@ -52,12 +56,10 @@ export default function RelationshipMap({ relationships, characters }) {
   const [nodes, setNodes]   = useState([])
   const [zoom, setZoom]     = useState(1)
   const [pan, setPan]       = useState({ x: 0, y: 0 })
-  const [dragging, setDragging] = useState(null) // { type: 'node'|'pan', id?, startX, startY, origX, origY, moved }
-  const [hovered, setHovered]   = useState(null) // rel id
-  // НОВЕ: персонаж, на якого клікнули — показуємо лише його прямі зв'язки
+  const [dragging, setDragging] = useState(null)
+  const [hovered, setHovered]   = useState(null)
   const [focusedId, setFocusedId] = useState(null)
 
-  // Ініціалізація вузлів
   useEffect(() => {
     if (!characters?.length) return
     setNodes(layoutNodes(characters))
@@ -65,13 +67,11 @@ export default function RelationshipMap({ relationships, characters }) {
 
   const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]))
 
-  // ── Drag вузла ───────────────────────────────────────────────────────────
   const onNodeMouseDown = useCallback((e, id) => {
     e.stopPropagation()
     setDragging({ type: 'node', id, startX: e.clientX, startY: e.clientY, moved: false })
   }, [])
 
-  // ── Drag полотна ─────────────────────────────────────────────────────────
   const onSvgMouseDown = useCallback((e) => {
     if (e.target === svgRef.current || e.target.tagName === 'svg') {
       setDragging({ type: 'pan', startX: e.clientX, startY: e.clientY, origX: pan.x, origY: pan.y, moved: false })
@@ -99,19 +99,15 @@ export default function RelationshipMap({ relationships, characters }) {
     }
   }, [dragging, zoom])
 
-  // НОВЕ: розрізняємо клік (без руху) і перетягування
   const onMouseUp = useCallback(() => {
     if (dragging?.type === 'node' && !dragging.moved) {
-      // Клік на вузлі — перемикаємо фокус (повторний клік на тому ж — скидає)
       setFocusedId((prev) => (prev === dragging.id ? null : dragging.id))
     } else if (dragging?.type === 'pan' && !dragging.moved) {
-      // Клік по порожньому фону — скидаємо фокус
       setFocusedId(null)
     }
     setDragging(null)
   }, [dragging])
 
-  // ── Zoom колесо ──────────────────────────────────────────────────────────
   const onWheel = useCallback((e) => {
     e.preventDefault()
     setZoom((z) => Math.max(0.3, Math.min(3, z - e.deltaY * 0.001)))
@@ -128,7 +124,6 @@ export default function RelationshipMap({ relationships, characters }) {
 
   const edgeMidpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
 
-  // НОВЕ: фільтрація зв'язків і вузлів за фокусом
   const visibleRelationships = focusedId
     ? relationships.filter((r) => r.character_id === focusedId || r.target_id === focusedId)
     : relationships
@@ -249,17 +244,19 @@ export default function RelationshipMap({ relationships, characters }) {
                     stroke="transparent" strokeWidth={20} />
                   <line x1={x1} y1={y1} x2={x2} y2={y2}
                     stroke={color}
-                    strokeWidth={isHov ? width + 1.5 : width}
+                    strokeWidth={isHov ? width + 2 : width}
                     strokeOpacity={isHov ? 1 : opacity}
                     strokeDasharray={dash}
                     markerEnd="url(#map-arrow)"
                   />
                   {isHov && (
                     <g>
+                      {/* ВИПРАВЛЕНО: фон тултипа тепер темою (--ink-800) замість
+                          захардкодженого #1a1a2e, який у світлій темі виглядав чужорідно */}
                       <rect
                         x={mid.x - 50} y={mid.y - 11}
                         width={100} height={22} rx={4}
-                        fill="#1a1a2e" stroke={color} strokeWidth={0.5} strokeOpacity={0.8}
+                        fill="var(--ink-800)" stroke={color} strokeWidth={0.5} strokeOpacity={0.8}
                       />
                       <text x={mid.x} y={mid.y + 1}
                         textAnchor="middle" dominantBaseline="central"
@@ -279,27 +276,30 @@ export default function RelationshipMap({ relationships, characters }) {
                 <g key={node.id}
                    style={{ cursor: dragging?.id === node.id ? 'grabbing' : 'grab' }}
                    onMouseDown={(e) => onNodeMouseDown(e, node.id)}>
+                  {/* ВИПРАВЛЕНО: усі кольори вузлів нижче тепер CSS-змінні теми
+                      замість захардкоджених темних hex-кольорів — раніше вузли
+                      лишались темно-фіолетовими навіть у світлій темі */}
                   <circle cx={node.x} cy={node.y} r={24}
-                    fill="#0a0a14" opacity={0.5} />
+                    fill="var(--ink-900)" opacity={0.5} />
                   <circle cx={node.x} cy={node.y} r={22}
-                    fill="#1e1e3a"
-                    stroke={isFocused ? 'var(--amber-ink)' : '#5a5a8a'}
+                    fill="var(--ink-700)"
+                    stroke={isFocused ? 'var(--amber-ink)' : 'var(--ink-300)'}
                     strokeWidth={isFocused ? 2.5 : 1} />
                   <text x={node.x} y={node.y}
                     textAnchor="middle" dominantBaseline="central"
                     fontSize={13} fontWeight={500}
-                    fill="#c8c6d0" fontFamily="sans-serif">
+                    fill="var(--parchment)" fontFamily="sans-serif">
                     {node.name.slice(0, 2).toUpperCase()}
                   </text>
                   <text x={node.x} y={node.y + 32}
                     textAnchor="middle" dominantBaseline="central"
-                    fontSize={11} fill="#9a98a8" fontFamily="sans-serif">
+                    fontSize={11} fill="var(--parchment-dim)" fontFamily="sans-serif">
                     {node.name.length > 14 ? node.name.slice(0, 13) + '…' : node.name}
                   </text>
                   {node.role && (
                     <text x={node.x} y={node.y + 45}
                       textAnchor="middle" dominantBaseline="central"
-                      fontSize={10} fill="#6a6880" fontFamily="sans-serif">
+                      fontSize={10} fill="var(--parchment-dim)" fillOpacity={0.7} fontFamily="sans-serif">
                       {node.role.length > 16 ? node.role.slice(0, 15) + '…' : node.role}
                     </text>
                   )}
@@ -320,7 +320,7 @@ export default function RelationshipMap({ relationships, characters }) {
             </div>
           ))}
           <div className="flex items-center gap-1.5">
-            <span className="h-0.5 w-5 rounded-full border-t border-dashed" style={{ borderColor: '#888780' }} />
+            <span className="h-0.5 w-5 rounded-full border-t border-dashed" style={{ borderColor: 'var(--parchment-dim)' }} />
             <span className="text-xs text-parchment-dim/60">пунктир = негативний</span>
           </div>
         </div>

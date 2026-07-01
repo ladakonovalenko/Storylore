@@ -75,6 +75,50 @@ html.light .border-ink-500 {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+/* НОВЕ: посилення "магнетизму" основних CTA-кнопок (bg-amber-ink — усі кнопки
+   типу "Новий проєкт"/"Нова фракція" по всьому сайту використовують цей клас).
+   Додає тінь у фірмовому кольорі й легкий підйом при наведенні/натисканні —
+   тепер головна дія помітно "важча" за другорядні (виконано глобально,
+   без редагування десятків окремих кнопок у кожному компоненті). */
+.bg-amber-ink {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease,
+              box-shadow 0.2s ease, transform 0.15s ease;
+}
+.bg-amber-ink:hover {
+  box-shadow: 0 4px 14px -2px var(--amber-ink);
+  transform: translateY(-1px);
+}
+.bg-amber-ink:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px -1px var(--amber-ink);
+}
+
+/* НОВЕ: легке "підняття" карток при наведенні — оживляє інтерфейс, який
+   раніше не мав жодної reaction на hover, окрім зміни кольору межі.
+   Обмежено комбінацією rounded-lg + border-ink-500, щоб НЕ зачепити
+   текстові поля форм (вони завжди rounded-md), лише справжні картки
+   (персонажі, фракції, проєкти, блоки структури тощо). */
+.rounded-lg.border-ink-500 {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease,
+              box-shadow 0.2s ease, transform 0.15s ease;
+}
+.rounded-lg.border-ink-500:not(.modal-panel):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.35);
+}
+html.light .rounded-lg.border-ink-500:not(.modal-panel):hover {
+  box-shadow: 0 8px 20px -6px rgba(15, 23, 42, 0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-amber-ink:hover,
+  .bg-amber-ink:active,
+  .rounded-lg.border-ink-500:hover {
+    transform: none;
+  }
+}
+
 /* Тонкий скролбар у тон поточної палітри */
 * {
   scrollbar-width: thin;
