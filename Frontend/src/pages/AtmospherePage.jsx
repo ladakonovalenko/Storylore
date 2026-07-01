@@ -283,6 +283,10 @@ export default function AtmospherePage() {
         <div>
           <h2 className="font-display text-3xl font-medium text-parchment">Атмосфера</h2>
           <InkStroke className="mt-1" width={90} />
+          <p className="mt-2 max-w-xl text-sm text-parchment-dim">
+            Саундтрек і мудборд вашого світу — музика та зображення, що передають настрій
+            і надихають на творчість.
+          </p>
           {projectTitle && (
             <p className="mt-2 text-sm text-parchment-dim">
               Проєкт: <span className="text-parchment">{projectTitle}</span>

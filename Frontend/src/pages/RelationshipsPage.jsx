@@ -102,6 +102,10 @@ export default function RelationshipsPage() {
         <div>
           <h2 className="font-display text-3xl font-medium text-parchment">Зв'язки</h2>
           <InkStroke className="mt-1" width={80} />
+          <p className="mt-2 max-w-xl text-sm text-parchment-dim">
+            Стосунки між персонажами — дружба, ворожнеча, родина чи щось складніше.
+            Переглядайте їх списком або на інтерактивній карті зв'язків.
+          </p>
           {projectTitle && (
             <p className="mt-2 text-sm text-parchment-dim">
               Проєкт: <span className="text-parchment">{projectTitle}</span>

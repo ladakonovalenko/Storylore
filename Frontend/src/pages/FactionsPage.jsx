@@ -157,6 +157,10 @@ export default function FactionsPage() {
         <div>
           <h2 className="font-display text-3xl font-medium text-parchment">Фракції</h2>
           <InkStroke className="mt-1" width={80} />
+          <p className="mt-2 max-w-xl text-sm text-parchment-dim">
+            Організації, ордени, гільдії та угруповання вашого світу — з власним складом,
+            ідеологією та персонажами-учасниками.
+          </p>
           {projectTitle && (
             <p className="mt-2 text-sm text-parchment-dim">
               Проєкт: <span className="text-parchment">{projectTitle}</span>

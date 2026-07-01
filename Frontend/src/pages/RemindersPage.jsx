@@ -86,6 +86,10 @@ export default function RemindersPage() {
     <div className="mx-auto max-w-2xl">
       <h2 className="font-display text-3xl font-medium text-parchment">Не забути</h2>
       <InkStroke className="mt-1" width={90} />
+      <p className="mt-2 max-w-xl text-sm text-parchment-dim">
+        Швидкі нотатки й обіцянки самій собі — те, що не хочеться забути, поки пишете історію,
+        але що не заслуговує на окрему статтю чи персонажа.
+      </p>
       {projectTitle && (
         <p className="mt-2 text-sm text-parchment-dim">
           Проєкт: <span className="text-parchment">{projectTitle}</span>

@@ -482,6 +482,10 @@ export default function WorldMapPage() {
         <div>
           <h2 className="font-display text-3xl font-medium text-parchment">Мапа світу</h2>
           <InkStroke className="mt-1" width={90} />
+          <p className="mt-2 max-w-xl text-sm text-parchment-dim">
+            Локації вашого світу на інтерактивній карті — з'єднуйте їх зв'язками
+            (союзи, кордони, торгові шляхи), організовуйте за паралельними вимірами.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {/* НОВЕ */}

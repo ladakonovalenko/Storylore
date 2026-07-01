@@ -180,6 +180,10 @@ export default function ProjectsPage() {
         <div>
           <h2 className="font-display text-3xl font-medium text-parchment">Проєкти</h2>
           <InkStroke className="mt-1" width={90} />
+          <p className="mt-2 max-w-2xl text-sm text-parchment-dim">
+            Кожен проєкт — окремий світ зі своїми персонажами, локаціями та історією.
+            Створюйте стільки світів, скільки забажаєте, і перемикайтесь між ними в будь-який момент.
+          </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}

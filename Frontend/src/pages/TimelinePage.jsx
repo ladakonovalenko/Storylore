@@ -254,6 +254,10 @@ export default function TimelinePage() {
         <div>
           <h2 className="font-display text-3xl font-medium text-parchment">Таймлайн</h2>
           <InkStroke className="mt-1" width={90} />
+          <p className="mt-2 max-w-xl text-sm text-parchment-dim">
+            Хронологія подій вашого світу — з ерами, сюжетними арками, альтернативними гілками
+            та причинно-наслідковими зв'язками між подіями.
+          </p>
           {projectTitle && (
             <p className="mt-2 text-sm text-parchment-dim">
               Проєкт: <span className="text-parchment">{projectTitle}</span>

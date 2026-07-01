@@ -164,6 +164,10 @@ export default function CharactersPage() {
           <div>
             <h2 className="font-display text-3xl font-medium text-parchment">Персонажі</h2>
             <InkStroke className="mt-1" width={100} />
+            <p className="mt-2 max-w-xl text-sm text-parchment-dim">
+              Анкети персонажів вашого світу — з описом, історією, мотивацією та стосунками.
+              Використовуйте шаблони, щоб швидко заповнити анкету за готовою структурою.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <IdeaGenerator characters={characters} />
