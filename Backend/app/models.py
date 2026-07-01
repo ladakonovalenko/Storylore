@@ -59,6 +59,7 @@ class Project(Base):
     moodboard_images = relationship("MoodboardImage", back_populates="project", cascade="all, delete-orphan")
     structure_blocks = relationship("StructureBlock", back_populates="project", cascade="all, delete-orphan")
     custom_pages = relationship("CustomPage", back_populates="project", cascade="all, delete-orphan")
+    custom_templates = relationship("CustomTemplate", back_populates="project", cascade="all, delete-orphan")
 
 class Faction(Base):
     __tablename__ = "factions"
