@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List
 from .auth import hash_password, verify_password, create_access_token, create_refresh_token, get_current_user
 from fastapi.responses import Response  # ДОДАТИ цей імпорт у верх routers.py, якщо його там нема
-
+from urllib.parse import quote
 
 router = APIRouter()
 
@@ -2042,10 +2042,26 @@ def export_project_markdown(project_id: int, db: Session = Depends(get_db)):
             lines.append(f"- {checkbox} {_md_escape(r.text)}")
 
     markdown_text = "\n".join(lines)
-    safe_filename = "".join(c for c in project.title if c.isalnum() or c in " _-").strip() or "project"
+
+    # ВИПРАВЛЕНО: HTTP-заголовки можуть містити лише ASCII/latin-1 символи,
+    # а назва проєкту зазвичай кирилична ("Спадок Імли") — пряме вставлення
+    # ламало кодування (UnicodeEncodeError: 'latin-1' codec can't encode).
+    # Тепер даємо два варіанти імені файлу: ASCII fallback (для старих
+    # клієнтів) + правильно закодований UTF-8 варіант через filename*
+    # (RFC 5987) — саме його розпізнає сучасний браузер і збереже файл
+    # з людяною кириличною назвою.
+    ascii_fallback = "".join(
+        c for c in project.title if c.isascii() and (c.isalnum() or c in " _-")
+    ).strip() or "project"
+    encoded_filename = quote(f"{project.title}.md")
 
     return Response(
         content=markdown_text,
         media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{safe_filename}.md"'},
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_fallback}.md"; '
+                f"filename*=UTF-8''{encoded_filename}"
+            )
+        },
     )
