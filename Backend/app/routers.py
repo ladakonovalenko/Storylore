@@ -6,6 +6,8 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 from .auth import hash_password, verify_password, create_access_token, create_refresh_token, get_current_user
+from fastapi.responses import Response  # ДОДАТИ цей імпорт у верх routers.py, якщо його там нема
+
 
 router = APIRouter()
 
@@ -545,6 +547,114 @@ def get_single_template(template_key: str):
     if template_key not in CHARACTER_TEMPLATES:
         raise HTTPException(status_code=404, detail="Шаблон не знайдено")
     return CHARACTER_TEMPLATES[template_key]
+
+
+# ==========================================
+# 🧬 ВЛАСНІ ШАБЛОНИ ПЕРСОНАЖІВ
+# ==========================================
+@router.post("/custom-templates", response_model=schemas.CustomTemplateResponse, tags=["CustomTemplates"])
+def create_custom_template(payload: schemas.CustomTemplateCreate, db: Session = Depends(get_db)):
+    db_template = models.CustomTemplate(**payload.model_dump())
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+
+@router.get("/projects/{project_id}/custom-templates", response_model=List[schemas.CustomTemplateResponse],
+            tags=["CustomTemplates"])
+def get_project_custom_templates(project_id: int, db: Session = Depends(get_db)):
+    return db.query(models.CustomTemplate).filter(models.CustomTemplate.project_id == project_id).all()
+
+
+@router.get("/custom-templates/{template_id}", response_model=schemas.CustomTemplateResponse, tags=["CustomTemplates"])
+def get_custom_template(template_id: int, db: Session = Depends(get_db)):
+    template = db.query(models.CustomTemplate).filter(models.CustomTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не знайдено")
+    return template
+
+
+@router.put("/custom-templates/{template_id}", response_model=schemas.CustomTemplateResponse, tags=["CustomTemplates"])
+def update_custom_template(template_id: int, payload: schemas.CustomTemplateUpdate, db: Session = Depends(get_db)):
+    db_template = db.query(models.CustomTemplate).filter(models.CustomTemplate.id == template_id).first()
+    if not db_template:
+        raise HTTPException(status_code=404, detail="Шаблон не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_template, key, value)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+
+@router.delete("/custom-templates/{template_id}", tags=["CustomTemplates"])
+def delete_custom_template(template_id: int, db: Session = Depends(get_db)):
+    db_template = db.query(models.CustomTemplate).filter(models.CustomTemplate.id == template_id).first()
+    if not db_template:
+        raise HTTPException(status_code=404, detail="Шаблон не знайдено")
+    db.delete(db_template)  # cascade видалить пов'язані поля
+    db.commit()
+    return {"detail": "Шаблон видалено"}
+
+
+@router.post("/custom-templates/{template_id}/fields", response_model=schemas.CustomTemplateFieldResponse,
+             tags=["CustomTemplates"])
+def add_custom_template_field(template_id: int, payload: schemas.CustomTemplateFieldCreate,
+                              db: Session = Depends(get_db)):
+    db_template = db.query(models.CustomTemplate).filter(models.CustomTemplate.id == template_id).first()
+    if not db_template:
+        raise HTTPException(status_code=404, detail="Шаблон не знайдено")
+    max_order = db.query(models.CustomTemplateField).filter(
+        models.CustomTemplateField.template_id == template_id).count()
+    db_field = models.CustomTemplateField(template_id=template_id, **payload.model_dump(), order_index=max_order)
+    db.add(db_field)
+    db.commit()
+    db.refresh(db_field)
+    return db_field
+
+
+@router.put("/custom-template-fields/{field_id}", response_model=schemas.CustomTemplateFieldResponse,
+            tags=["CustomTemplates"])
+def update_custom_template_field(field_id: int, payload: schemas.CustomTemplateFieldUpdate,
+                                 db: Session = Depends(get_db)):
+    db_field = db.query(models.CustomTemplateField).filter(models.CustomTemplateField.id == field_id).first()
+    if not db_field:
+        raise HTTPException(status_code=404, detail="Поле не знайдено")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_field, key, value)
+    db.commit()
+    db.refresh(db_field)
+    return db_field
+
+
+@router.delete("/custom-template-fields/{field_id}", tags=["CustomTemplates"])
+def delete_custom_template_field(field_id: int, db: Session = Depends(get_db)):
+    db_field = db.query(models.CustomTemplateField).filter(models.CustomTemplateField.id == field_id).first()
+    if not db_field:
+        raise HTTPException(status_code=404, detail="Поле не знайдено")
+    db.delete(db_field)
+    db.commit()
+    return {"detail": "Поле видалено"}
+
+
+@router.put("/custom-templates/{template_id}/fields/reorder", response_model=List[schemas.CustomTemplateFieldResponse],
+            tags=["CustomTemplates"])
+def reorder_custom_template_fields(template_id: int, payload: schemas.CustomTemplateFieldReorder,
+                                   db: Session = Depends(get_db)):
+    for index, field_id in enumerate(payload.field_ids):
+        db.query(models.CustomTemplateField).filter(
+            models.CustomTemplateField.id == field_id,
+            models.CustomTemplateField.template_id == template_id,
+        ).update({"order_index": index}, synchronize_session=False)
+    db.commit()
+    return (
+        db.query(models.CustomTemplateField)
+        .filter(models.CustomTemplateField.template_id == template_id)
+        .order_by(models.CustomTemplateField.order_index)
+        .all()
+    )
+
+
 # ==========================================
 # 🏰 ФРАКЦІЇ
 # ==========================================
@@ -1532,6 +1642,24 @@ def get_custom_page_blocks(page_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/projects/{project_id}/custom-pages/blocks", response_model=List[schemas.CustomPageBlockResponse],
+            tags=["CustomPages"])
+def get_project_custom_page_blocks(project_id: int, db: Session = Depends(get_db)):
+    """Усі блоки всіх власних сторінок проєкту одним запитом —
+    використовується для пошуку по вмісту (SearchModal), щоб не робити
+    окремий запит на кожну сторінку (N+1)."""
+    page_ids = [
+        p.id for p in db.query(models.CustomPage).filter(models.CustomPage.project_id == project_id).all()
+    ]
+    if not page_ids:
+        return []
+    return (
+        db.query(models.CustomPageBlock)
+        .filter(models.CustomPageBlock.page_id.in_(page_ids))
+        .all()
+    )
+
+
 @router.put("/custom-page-blocks/{block_id}", response_model=schemas.CustomPageBlockResponse, tags=["CustomPages"])
 def update_custom_page_block(block_id: int, payload: schemas.CustomPageBlockUpdate, db: Session = Depends(get_db)):
     db_block = db.query(models.CustomPageBlock).filter(models.CustomPageBlock.id == block_id).first()
@@ -1750,3 +1878,174 @@ def delete_project(
     db.delete(db_project)
     db.commit()
     return {"detail": "Проєкт видалено"}
+
+
+def _md_escape(text: str) -> str:
+    """Прибирає зайві проблемні символи з тексту перед вставкою в Markdown."""
+    return (text or "").replace("\r\n", "\n").strip()
+
+
+def _md_section(title: str, level: int = 2) -> str:
+    return f"\n{'#' * level} {title}\n"
+
+
+@router.get("/projects/{project_id}/export-markdown", tags=["Export"])
+def export_project_markdown(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Проєкт не знайдено")
+
+    lines = [f"# {project.title}\n"]
+    if project.description:
+        lines.append(_md_escape(project.description) + "\n")
+
+    # ── Персонажі ────────────────────────────────────────────────
+    characters = db.query(models.Character).filter(models.Character.project_id == project_id).all()
+    if characters:
+        lines.append(_md_section("Персонажі"))
+        for c in characters:
+            lines.append(f"\n### {c.name}")
+            lines.append(f"_{c.role or ''} · {c.status or ''}_\n")
+            for field_label, value in [
+                ("Опис", c.description), ("Передісторія", c.biography),
+                ("Зовнішність", c.appearance), ("Мотивація та цілі", c.motivation_goals),
+                ("Риси характеру", c.character_traits), ("Страхи та вразливості", c.fears_vulnerabilities),
+                ("Таємниці", c.secrets), ("Арка персонажа", c.character_arc),
+            ]:
+                if value:
+                    lines.append(f"**{field_label}:** {_md_escape(value)}\n")
+
+    # ── Фракції ──────────────────────────────────────────────────
+    factions = db.query(models.Faction).filter(models.Faction.project_id == project_id).all()
+    if factions:
+        lines.append(_md_section("Фракції"))
+        for f in factions:
+            lines.append(f"\n### {f.name}")
+            if f.type or f.alignment:
+                lines.append(f"_{f.type or ''} · {f.alignment or ''}_\n")
+            if f.description:
+                lines.append(_md_escape(f.description) + "\n")
+
+    # ── Локації ──────────────────────────────────────────────────
+    locations = db.query(models.Location).filter(models.Location.project_id == project_id).all()
+    if locations:
+        lines.append(_md_section("Локації"))
+        for loc in locations:
+            lines.append(f"\n### {loc.name} _{loc.type or ''}_")
+            if loc.description:
+                lines.append(_md_escape(loc.description) + "\n")
+
+    # ── Ери, арки, гілки, події ──────────────────────────────────
+    eras = db.query(models.Era).filter(models.Era.project_id == project_id).order_by(models.Era.order_index).all()
+    arcs = db.query(models.Arc).filter(models.Arc.project_id == project_id).all()
+    branches = db.query(models.Branch).filter(models.Branch.project_id == project_id).all()
+    events = db.query(models.Event).filter(models.Event.project_id == project_id).order_by(
+        models.Event.year.nullslast()
+    ).all()
+
+    if eras:
+        lines.append(_md_section("Ери"))
+        for era in eras:
+            year_range = ""
+            if era.start_year is not None or era.end_year is not None:
+                year_range = f" ({era.start_year or '…'} — {era.end_year or '…'})"
+            lines.append(f"\n### {era.name}{year_range}")
+            if era.description:
+                lines.append(_md_escape(era.description) + "\n")
+
+    if arcs:
+        lines.append(_md_section("Арки сюжету"))
+        for arc in arcs:
+            lines.append(f"\n### {arc.title} _{arc.status}_")
+            if arc.goal:
+                lines.append(f"**Мета:** {_md_escape(arc.goal)}\n")
+            if arc.description:
+                lines.append(_md_escape(arc.description) + "\n")
+
+    if branches:
+        lines.append(_md_section("Альтернативні гілки"))
+        for branch in branches:
+            lines.append(f"\n### {branch.name}")
+            if branch.description:
+                lines.append(_md_escape(branch.description) + "\n")
+
+    if events:
+        lines.append(_md_section("Таймлайн подій"))
+        for ev in events:
+            year_label = ""
+            if ev.year is not None:
+                year_label = f"{abs(ev.year)} до н.е." if ev.year < 0 else f"{ev.year} н.е."
+            elif ev.date_label:
+                year_label = ev.date_label
+            lines.append(f"\n### {ev.title}" + (f" — {year_label}" if year_label else ""))
+            lines.append(f"_{ev.event_type or ''} · {ev.importance or ''}_\n")
+            if ev.description:
+                lines.append(_md_escape(ev.description) + "\n")
+
+    # ── Бібліотека (вікі) ────────────────────────────────────────
+    wiki_articles = db.query(models.WikiArticle).filter(models.WikiArticle.project_id == project_id).all()
+    if wiki_articles:
+        lines.append(_md_section("Бібліотека"))
+        for article in wiki_articles:
+            lines.append(f"\n### {article.title} _{article.category or ''}_")
+            if article.content:
+                lines.append(_md_escape(article.content) + "\n")
+
+    # ── Каркас сюжету ────────────────────────────────────────────
+    outline = db.query(models.PlotOutline).filter(models.PlotOutline.project_id == project_id).first()
+    if outline and any([outline.logline, outline.setup, outline.rising_action,
+                        outline.main_conflict, outline.key_turns,
+                        outline.resolution_options, outline.ending]):
+        lines.append(_md_section("Каркас сюжету"))
+        for field_label, value in [
+            ("Логлайн", outline.logline), ("Зав'язка", outline.setup),
+            ("Розкачка", outline.rising_action), ("Основний конфлікт", outline.main_conflict),
+            ("Ключові повороти", outline.key_turns), ("Варіанти вирішення", outline.resolution_options),
+            ("Фінал", outline.ending),
+        ]:
+            if value:
+                lines.append(f"**{field_label}:** {_md_escape(value)}\n")
+
+    # ── Власні сторінки ──────────────────────────────────────────
+    custom_pages = db.query(models.CustomPage).filter(models.CustomPage.project_id == project_id).order_by(
+        models.CustomPage.order_index
+    ).all()
+    if custom_pages:
+        lines.append(_md_section("Власні сторінки"))
+        for page in custom_pages:
+            lines.append(f"\n### {page.title}")
+            blocks = db.query(models.CustomPageBlock).filter(
+                models.CustomPageBlock.page_id == page.id
+            ).order_by(models.CustomPageBlock.order_index).all()
+            for block in blocks:
+                lines.append(f"\n**{block.title}**\n")
+                if block.content:
+                    lines.append(_md_escape(block.content) + "\n")
+
+    # ── Структура ────────────────────────────────────────────────
+    structure_blocks = db.query(models.StructureBlock).filter(
+        models.StructureBlock.project_id == project_id
+    ).order_by(models.StructureBlock.order_index).all()
+    if structure_blocks:
+        lines.append(_md_section("Структура"))
+        for block in structure_blocks:
+            lines.append(f"\n### {block.title}\n")
+            if block.content:
+                lines.append(_md_escape(block.content) + "\n")
+
+    # ── Не забути ────────────────────────────────────────────────
+    reminders = db.query(models.Reminder).filter(models.Reminder.project_id == project_id).all()
+    if reminders:
+        lines.append(_md_section("Не забути"))
+        for r in reminders:
+            checkbox = "[x]" if r.is_done else "[ ]"
+            lines.append(f"- {checkbox} {_md_escape(r.text)}")
+
+    markdown_text = "\n".join(lines)
+    safe_filename = "".join(c for c in project.title if c.isalnum() or c in " _-").strip() or "project"
+
+    return Response(
+        content=markdown_text,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}.md"'},
+    )

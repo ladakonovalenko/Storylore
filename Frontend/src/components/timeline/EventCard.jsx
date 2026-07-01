@@ -1,4 +1,5 @@
 import { Edit3, Trash2, MapPin, Users, Calendar, History, BookOpen, GitBranch } from 'lucide-react'
+import { formatYear } from '../../utils/yearLabel'
 
 const IMPORTANCE_MAP = {
   'Основна':    { stars: '★★★', cls: 'text-amber-soft  bg-amber-ink/15' },
@@ -31,7 +32,9 @@ export default function EventCard({ event, characters, eras = [], arcs = [], bra
     ? event.tags.split(',').map((t) => t.trim()).filter(Boolean)
     : []
 
-  const timeLabel = event.date_label || (event.year != null ? `${event.year} р.` : null)
+  // ВИПРАВЛЕНО: рік форматується через formatYear — для від'ємних років
+  // показує "500 до н.е." замість сирого "-500 р."
+  const timeLabel = event.date_label || (event.year != null ? formatYear(event.year) : null)
 
   const era = eras.find((e) => e.id === event.era_id)
   const arc = arcs.find((a) => a.id === event.arc_id)

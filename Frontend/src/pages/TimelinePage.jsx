@@ -9,12 +9,17 @@ import { getProjectArcs } from '../api/arcs'
 import { getProjectEventCausalities } from '../api/eventCausalities'
 import { getProjectBranches } from '../api/branches'
 import { useProject } from '../context/ProjectContext'
+import { formatYear } from '../utils/yearLabel'
 import EventCard from '../components/timeline/EventCard'
 import EventForm from '../components/timeline/EventForm'
 import EraManager from '../components/timeline/EraManager'
 import ArcManager from '../components/timeline/ArcManager'
 import CausalityManager from '../components/timeline/CausalityManager'
 import BranchManager from '../components/timeline/BranchManager'
+// НОВЕ: детальні перегляди ер/арок/гілок
+import EraDetailModal from '../components/timeline/EraDetailModal'
+import ArcDetailModal from '../components/timeline/ArcDetailModal'
+import BranchDetailModal from '../components/timeline/BranchDetailModal'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import InkStroke from '../components/layout/InkStroke'
@@ -29,16 +34,13 @@ const EVENT_TYPES = [
 
 export default function TimelinePage() {
   const { activeProject, activeProjectId } = useProject()
-  // НОВЕ: підтримка глобального пошуку
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [events,       setEvents]       = useState([])
   const [characters,   setCharacters]   = useState([])
-  // НОВЕ: ери, арки, причинно-наслідкові зв'язки
   const [eras,         setEras]         = useState([])
   const [arcs,         setArcs]         = useState([])
   const [causalities,  setCausalities]  = useState([])
-  // НОВЕ: гілки + активна лінія перегляду ('main' або id гілки як рядок)
   const [branches,     setBranches]     = useState([])
   const [activeLine,   setActiveLine]   = useState('main')
 
@@ -48,17 +50,24 @@ export default function TimelinePage() {
   const [isModalOpen,  setIsModalOpen]  = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
 
-  // НОВЕ: відкриті менеджери
   const [isEraManagerOpen,       setIsEraManagerOpen]       = useState(false)
   const [isArcManagerOpen,       setIsArcManagerOpen]       = useState(false)
   const [isCausalityManagerOpen, setIsCausalityManagerOpen] = useState(false)
   const [isBranchManagerOpen,    setIsBranchManagerOpen]    = useState(false)
 
+  // НОВЕ: яку еру/арку/гілку зараз переглядаємо в деталях (об'єкт або null)
+  const [viewingEra,    setViewingEra]    = useState(null)
+  const [viewingArc,    setViewingArc]    = useState(null)
+  const [viewingBranch, setViewingBranch] = useState(null)
+
+  // НОВЕ: підставляємо ці значення в форму нової події, коли її відкривають
+  // кнопкою "Додати подію" з детального перегляду ери/арки/гілки
+  const [prefill, setPrefill] = useState({ era_id: null, arc_id: null, branch_id: null })
+
   // Фільтри
   const [filterType,       setFilterType]       = useState('')
   const [filterImportance, setFilterImportance] = useState('')
   const [filterCharacter,  setFilterCharacter]  = useState('')
-  // НОВЕ: фільтр за ерою/аркою + режим групування
   const [filterEra,         setFilterEra]         = useState('')
   const [filterArc,         setFilterArc]         = useState('')
   const [groupBy,           setGroupBy]           = useState('year') // 'year' | 'era'
@@ -74,7 +83,6 @@ export default function TimelinePage() {
     }
     setIsLoading(true); setError(null)
     try {
-      // НОВЕ: вантажимо ери/арки/причинність/гілки паралельно з подіями та персонажами
       const [evs, chars, erasData, arcsData, causalitiesData, branchesData] = await Promise.all([
         getEvents({ project_id: activeProjectId }),
         getCharacters(activeProjectId),
@@ -98,8 +106,6 @@ export default function TimelinePage() {
 
   useEffect(() => { load() }, [load])
 
-  // НОВЕ: відкриття конкретної події з глобального пошуку (?focus=<id>) —
-  // подій немає окремої панелі перегляду, тож відкриваємо модалку редагування
   useEffect(() => {
     const focusId = searchParams.get('focus')
     if (!focusId || events.length === 0) return
@@ -120,6 +126,7 @@ export default function TimelinePage() {
       setEvents((prev) => [created, ...prev])
       toast.success(`Подію «${created.title}» додано`)
       setIsModalOpen(false)
+      setPrefill({ era_id: null, arc_id: null, branch_id: null })
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -153,7 +160,6 @@ export default function TimelinePage() {
     try {
       await deleteEvent(id)
       setEvents((prev) => prev.filter((e) => e.id !== id))
-      // НОВЕ: видалена подія могла бути частиною причинно-наслідкових зв'язків
       setCausalities((prev) => prev.filter((c) => c.cause_event_id !== id && c.effect_event_id !== id))
       toast.success(`Подію «${title}» видалено`)
     } catch (err) {
@@ -161,8 +167,34 @@ export default function TimelinePage() {
     }
   }
 
+  // НОВЕ: відкрити подію на редагування зсередини детального перегляду —
+  // спершу закриваємо детальний перегляд, щоб модалки не накладались одна на одну
+  const openEditFromDetail = (ev) => {
+    setViewingEra(null); setViewingArc(null); setViewingBranch(null)
+    setEditingEvent(ev)
+    setIsModalOpen(true)
+  }
+  const openDeleteFromDetail = (ev) => {
+    setViewingEra(null); setViewingArc(null); setViewingBranch(null)
+    handleDeleteRequest(ev)
+  }
+
+  // НОВЕ: "Додати подію" з детального перегляду ери/арки/гілки —
+  // одразу підставляє відповідний id у форму
+  const openAddEventFor = (overrides) => {
+    setViewingEra(null); setViewingArc(null); setViewingBranch(null)
+    setEditingEvent(null)
+    setPrefill({ era_id: null, arc_id: null, branch_id: null, ...overrides })
+    setIsModalOpen(true)
+  }
+
+  const closeEventModal = () => {
+    setIsModalOpen(false)
+    setEditingEvent(null)
+    setPrefill({ era_id: null, arc_id: null, branch_id: null })
+  }
+
   // ── Фільтрація + сортування ───────────────────────────────────────────────
-  // НОВЕ: спершу обираємо лінію — основна (без branch_id) чи конкретна гілка
   const lineEvents = events.filter((e) =>
     activeLine === 'main' ? !e.branch_id : String(e.branch_id) === activeLine
   )
@@ -188,7 +220,6 @@ export default function TimelinePage() {
 
   const projectTitle = activeProject?.title || activeProject?.name || null
 
-  // НОВЕ: групування по ерах (якщо обрано) або по роках (як було)
   const grouped = filtered.reduce((acc, e) => {
     let key
     if (groupBy === 'era') {
@@ -202,10 +233,17 @@ export default function TimelinePage() {
     return acc
   }, {})
 
-  // НОВЕ: при групуванні за ерою — впорядковуємо за order_index ер, "Без ери" завжди в кінці
   const groupKeys = groupBy === 'era'
     ? [...eras.map((e) => e.name), 'Без ери'].filter((k) => grouped[k])
-    : Object.keys(grouped)
+    : (() => {
+        const seen = new Set()
+        const keys = []
+        filtered.forEach((e) => {
+          const key = e.year != null ? String(e.year) : (e.date_label || 'Без дати')
+          if (!seen.has(key)) { seen.add(key); keys.push(key) }
+        })
+        return keys
+      })()
 
   const inputCls = 'rounded-md border border-ink-500 bg-ink-800 px-3 py-1.5 text-sm text-parchment focus:border-amber-ink focus:outline-none'
 
@@ -223,7 +261,6 @@ export default function TimelinePage() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* НОВЕ: кнопки менеджерів ер/арок/причинності */}
           <button
             onClick={() => setIsEraManagerOpen(true)}
             disabled={!activeProjectId}
@@ -245,7 +282,6 @@ export default function TimelinePage() {
           >
             <GitCommit size={15} /> Причинність
           </button>
-          {/* НОВЕ */}
           <button
             onClick={() => setIsBranchManagerOpen(true)}
             disabled={!activeProjectId}
@@ -302,7 +338,6 @@ export default function TimelinePage() {
 
         ) : (
           <>
-            {/* НОВЕ: перемикач лінії — основна чи конкретна гілка */}
             {branches.length > 0 && (
               <div className="mb-4 flex flex-wrap items-center gap-1.5">
                 <span className="text-xs text-parchment-dim">Лінія:</span>
@@ -330,7 +365,6 @@ export default function TimelinePage() {
                 {filtered.length !== lineEvents.length && ` / ${lineEvents.length}`}
               </span>
 
-              {/* НОВЕ: перемикач групування */}
               <div className="ml-auto flex items-center gap-1 rounded-md border border-ink-500 p-0.5">
                 <button onClick={() => setGroupBy('year')}
                   className={`rounded px-2.5 py-1 text-xs transition-colors ${
@@ -382,7 +416,6 @@ export default function TimelinePage() {
                   <option value="">Всі персонажі</option>
                   {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-                {/* НОВЕ: фільтри за ерою та аркою */}
                 {eras.length > 0 && (
                   <select value={filterEra} onChange={(e) => setFilterEra(e.target.value)} className={inputCls}>
                     <option value="">Всі ери</option>
@@ -411,16 +444,16 @@ export default function TimelinePage() {
               <div className="flex flex-col gap-8">
                 {groupKeys.map((groupKey) => (
                   <div key={groupKey}>
-                    {/* Мітка групи */}
                     <div className="mb-4 flex items-center gap-3">
                       <div className="flex h-8 min-w-[80px] items-center justify-center rounded-full border border-amber-ink bg-amber-ink/10 px-3">
                         <span className="font-mono text-sm font-medium text-amber-soft">
-                          {groupBy === 'year' && groupKey !== 'Без дати' ? `${groupKey} р.` : groupKey}
+                          {groupBy === 'year' && groupKey !== 'Без дати' && /^-?\d+$/.test(groupKey)
+                            ? formatYear(Number(groupKey))
+                            : groupKey}
                         </span>
                       </div>
                       <div className="h-px flex-1 bg-ink-500" />
                     </div>
-                    {/* Картки */}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {grouped[groupKey].map((ev) => (
                         <EventCard
@@ -447,7 +480,7 @@ export default function TimelinePage() {
       <Modal
         title={editingEvent ? 'Редагувати подію' : 'Нова подія'}
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingEvent(null) }}
+        onClose={closeEventModal}
         maxWidth="max-w-lg"
       >
         <EventForm
@@ -456,24 +489,27 @@ export default function TimelinePage() {
           eras={eras}
           arcs={arcs}
           branches={branches}
-          defaultBranchId={!editingEvent && activeLine !== 'main' ? activeLine : null}
+          defaultEraId={!editingEvent ? prefill.era_id : null}
+          defaultArcId={!editingEvent ? prefill.arc_id : null}
+          defaultBranchId={!editingEvent ? (prefill.branch_id ?? (activeLine !== 'main' ? activeLine : null)) : null}
           projectId={activeProjectId}
           onSubmit={editingEvent
             ? (payload) => handleEdit(editingEvent.id, payload)
             : handleCreate
           }
-          onCancel={() => { setIsModalOpen(false); setEditingEvent(null) }}
+          onCancel={closeEventModal}
           isSubmitting={isSubmitting}
         />
       </Modal>
 
-      {/* НОВЕ: менеджери ер / арок / причинності */}
+      {/* Менеджери ер / арок / причинності / гілок — тепер з кнопкою "переглянути" на кожному рядку */}
       <EraManager
         isOpen={isEraManagerOpen}
         onClose={() => setIsEraManagerOpen(false)}
         projectId={activeProjectId}
         eras={eras}
         onChange={setEras}
+        onView={(era) => { setIsEraManagerOpen(false); setViewingEra(era) }}
       />
       <ArcManager
         isOpen={isArcManagerOpen}
@@ -482,6 +518,7 @@ export default function TimelinePage() {
         arcs={arcs}
         characters={characters}
         onChange={setArcs}
+        onView={(arc) => { setIsArcManagerOpen(false); setViewingArc(arc) }}
       />
       <CausalityManager
         isOpen={isCausalityManagerOpen}
@@ -490,7 +527,6 @@ export default function TimelinePage() {
         causalities={causalities}
         onChange={setCausalities}
       />
-      {/* НОВЕ */}
       <BranchManager
         isOpen={isBranchManagerOpen}
         onClose={() => setIsBranchManagerOpen(false)}
@@ -498,6 +534,48 @@ export default function TimelinePage() {
         branches={branches}
         mainEvents={events.filter((e) => !e.branch_id)}
         onChange={setBranches}
+        onView={(branch) => { setIsBranchManagerOpen(false); setViewingBranch(branch) }}
+      />
+
+      {/* НОВЕ: детальні перегляди ери/арки/гілки з повним списком подій */}
+      <EraDetailModal
+        isOpen={!!viewingEra}
+        onClose={() => setViewingEra(null)}
+        era={viewingEra}
+        events={events}
+        characters={characters}
+        eras={eras}
+        arcs={arcs}
+        branches={branches}
+        onEditEvent={openEditFromDetail}
+        onDeleteEvent={openDeleteFromDetail}
+        onAddEvent={() => openAddEventFor({ era_id: viewingEra?.id })}
+      />
+      <ArcDetailModal
+        isOpen={!!viewingArc}
+        onClose={() => setViewingArc(null)}
+        arc={viewingArc}
+        events={events}
+        characters={characters}
+        eras={eras}
+        arcs={arcs}
+        branches={branches}
+        onEditEvent={openEditFromDetail}
+        onDeleteEvent={openDeleteFromDetail}
+        onAddEvent={() => openAddEventFor({ arc_id: viewingArc?.id })}
+      />
+      <BranchDetailModal
+        isOpen={!!viewingBranch}
+        onClose={() => setViewingBranch(null)}
+        branch={viewingBranch}
+        events={events}
+        characters={characters}
+        eras={eras}
+        arcs={arcs}
+        branches={branches}
+        onEditEvent={openEditFromDetail}
+        onDeleteEvent={openDeleteFromDetail}
+        onAddEvent={() => openAddEventFor({ branch_id: viewingBranch?.id })}
       />
 
       <ConfirmDialog

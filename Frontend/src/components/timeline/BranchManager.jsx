@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Edit3, Trash2, Check, X, Loader2, GitBranch } from 'lucide-react'
+import { Plus, Edit3, Trash2, Check, X, Loader2, GitBranch, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createBranch, updateBranch, deleteBranch } from '../../api/branches'
 import Modal from '../common/Modal'
@@ -7,7 +7,7 @@ import Modal from '../common/Modal'
 const inputCls =
   'mt-1 w-full rounded-md border border-ink-500 bg-ink-900 px-3 py-2 text-sm text-parchment placeholder:text-parchment-dim/50 focus:border-amber-ink focus:outline-none'
 
-function BranchRow({ branch, mainEvents, onSaved, onDeleted }) {
+function BranchRow({ branch, mainEvents, onSaved, onDeleted, onView }) {
   const [editing, setEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [draft, setDraft] = useState({
@@ -88,6 +88,11 @@ function BranchRow({ branch, mainEvents, onSaved, onDeleted }) {
         {branch.description && <p className="mt-1 text-xs text-parchment-dim">{branch.description}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {/* НОВЕ: розгорнутий перегляд гілки з усіма її подіями */}
+        <button onClick={() => onView(branch)}
+          className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-crimson-soft" aria-label="Переглянути" title="Переглянути докладно">
+          <Eye size={13} />
+        </button>
         <button onClick={() => setEditing(true)}
           className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-amber-soft" aria-label="Редагувати">
           <Edit3 size={13} />
@@ -102,7 +107,7 @@ function BranchRow({ branch, mainEvents, onSaved, onDeleted }) {
 }
 
 // mainEvents: події основної лінії (без branch_id) — лише вони можуть бути точкою розгалуження
-export default function BranchManager({ isOpen, onClose, projectId, branches, mainEvents, onChange }) {
+export default function BranchManager({ isOpen, onClose, projectId, branches, mainEvents, onChange, onView }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [branchPointId, setBranchPointId] = useState('')
@@ -171,7 +176,7 @@ export default function BranchManager({ isOpen, onClose, projectId, branches, ma
           ) : (
             branches.map((branch) => (
               <BranchRow key={branch.id} branch={branch} mainEvents={mainEvents}
-                onSaved={handleSaved} onDeleted={handleDeleted} />
+                onSaved={handleSaved} onDeleted={handleDeleted} onView={onView} />
             ))
           )}
         </div>

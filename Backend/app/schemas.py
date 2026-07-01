@@ -704,3 +704,67 @@ class NavFolderResponse(BaseModel):
     order_index: int
     items: List[NavItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- ВЛАСНІ ШАБЛОНИ ПЕРСОНАЖІВ ---
+class CustomTemplateFieldCreate(BaseModel):
+    key: str  # один із SELECTABLE_FIELD_KEYS на фронтенді
+    label: str
+    type: Optional[str] = "textarea"
+    required: Optional[bool] = False
+    placeholder: Optional[str] = None
+    hint: Optional[str] = None
+    example: Optional[str] = None
+
+
+class CustomTemplateFieldUpdate(BaseModel):
+    label: Optional[str] = None
+    type: Optional[str] = None
+    required: Optional[bool] = None
+    placeholder: Optional[str] = None
+    hint: Optional[str] = None
+    example: Optional[str] = None
+
+
+class CustomTemplateFieldReorder(BaseModel):
+    field_ids: List[int]
+
+
+class CustomTemplateFieldResponse(BaseModel):
+    id: int
+    template_id: int
+    key: str
+    label: str
+    type: str
+    required: bool
+    placeholder: Optional[str] = None
+    hint: Optional[str] = None
+    example: Optional[str] = None
+    order_index: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomTemplateCreate(BaseModel):
+    project_id: int
+    template_name: str = "Новий шаблон"
+    description: Optional[str] = None
+    role: Optional[str] = "Другорядний персонаж"
+    rank: Optional[str] = "Другорядний"
+
+
+class CustomTemplateUpdate(BaseModel):
+    template_name: Optional[str] = None
+    description: Optional[str] = None
+    role: Optional[str] = None
+    rank: Optional[str] = None
+
+
+class CustomTemplateResponse(BaseModel):
+    id: int
+    project_id: int
+    template_name: str
+    description: Optional[str] = None
+    role: str
+    rank: str
+    fields: List[CustomTemplateFieldResponse] = []
+    model_config = ConfigDict(from_attributes=True)

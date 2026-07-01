@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { getTemplates, getTemplateByKey } from '../../api/templates'
+import { getProjectCustomTemplates } from '../../api/customTemplates'
 import { getTemplateKey, getTemplateLabel, getTemplateDescription, normalizeFields, generateExampleValues, getTemplateDefaults } from '../../utils/templateFields'
 
 const STATUS_OPTIONS = [
@@ -14,7 +15,9 @@ const ROLE_OPTIONS = [
   'Другорядний персонаж', 'Союзник', 'Суперник', 'Нейтральний',
 ]
 
-// Всі поля моделі — показуємо коли немає шаблону або "показати всі"
+// Всі поля моделі — показуємо коли немає шаблону або "показати всі".
+// ВАЖЛИВО: 'name' лишається тут для сумісності зі старою логікою підказок/прикладів,
+// але фактично рендериться окремо (див. нижче) — тому виключається з fieldsToShow.
 const ALL_FIELDS = [
   { key: 'name',                     label: "Ім'я",                    type: 'text',     required: true  },
   { key: 'description',              label: 'Опис',                    type: 'textarea'  },
@@ -44,9 +47,12 @@ const ALL_FIELDS = [
   { key: 'symbols',                  label: 'Символи',                 type: 'textarea'  },
 ]
 
+const CUSTOM_PREFIX = 'custom:'
+
 export default function CharacterForm({ initial = {}, projectId, onSubmit, onCancel, isSubmitting }) {
   const [templates,        setTemplates]        = useState([])
   const [templatesLoading, setTemplatesLoading] = useState(true)
+  const [customTemplates,  setCustomTemplates]  = useState([])
   const [templateDetail,   setTemplateDetail]   = useState(null)
   const [templateLoading,  setTemplateLoading]  = useState(false)
   const [showAllFields,    setShowAllFields]    = useState(false)
@@ -79,15 +85,34 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
   }, [])
 
   useEffect(() => {
+    if (!projectId) { setCustomTemplates([]); return }
+    getProjectCustomTemplates(projectId)
+      .then((data) => {
+        setCustomTemplates(data.map((t) => ({
+          ...t,
+          default_values: { status: 'Живий', role: t.role, rank: t.rank },
+        })))
+      })
+      .catch(() => {})
+  }, [projectId])
+
+  useEffect(() => {
     if (!values.template_key) { setTemplateDetail(null); return }
+
+    if (values.template_key.startsWith(CUSTOM_PREFIX)) {
+      const id = values.template_key.slice(CUSTOM_PREFIX.length)
+      const found = customTemplates.find((t) => String(t.id) === id)
+      setTemplateDetail(found ?? null)
+      return
+    }
+
     setTemplateLoading(true)
     getTemplateByKey(values.template_key)
       .then((tpl) => setTemplateDetail(tpl))
       .catch(() => setTemplateDetail(null))
       .finally(() => setTemplateLoading(false))
-  }, [values.template_key])
+  }, [values.template_key, customTemplates])
 
-  // При виборі шаблону — підставляємо дефолтні значення
   useEffect(() => {
     if (!templateDetail) return
     const defaults = getTemplateDefaults(templateDetail)
@@ -98,7 +123,6 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
 
   const set = (key, val) => setValues((p) => ({ ...p, [key]: val }))
 
-  // Кнопка "Згенерувати приклад"
   const handleGenerateExample = () => {
     if (!templateDetail) return
     const examples = generateExampleValues(templateDetail)
@@ -123,29 +147,16 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
       err ? 'border-crimson-soft' : 'border-ink-500 focus:border-amber-ink'
     }`
 
-  // Поля для рендеру: або з шаблону, або всі
-  const templateFields = templateDetail ? normalizeFields(templateDetail) : []
+  // ВИПРАВЛЕНО: 'name' прибирається зі списку полів шаблону/усіх полів —
+  // рендериться окремо, завжди, незалежно від обраного шаблону (нижче)
+  const templateFields = templateDetail ? normalizeFields(templateDetail).filter((f) => f.key !== 'name') : []
   const hasTemplate    = templateFields.length > 0
-  const fieldsToShow   = hasTemplate && !showAllFields ? templateFields : ALL_FIELDS
+  const fieldsToShow   = (hasTemplate && !showAllFields ? templateFields : ALL_FIELDS).filter((f) => f.key !== 'name')
 
   const renderField = (field) => {
     const { key, label, type, required, placeholder, hint, example } = field
     const val     = values[key] ?? ''
     const isError = touched && required && !String(val).trim()
-
-    if (key === 'name') {
-      return (
-        <div key={key} className="flex flex-col gap-1">
-          <label className="block text-sm text-parchment-dim">
-            {label}<span className="ml-1 text-crimson-soft">*</span>
-            <input type="text" value={val} onChange={(e) => set(key, e.target.value)}
-              placeholder={placeholder ?? 'Арагорн, Джон Сноу…'}
-              className={inputCls(isError)} />
-          </label>
-          {isError && <span className="text-xs text-crimson-soft">Поле обов'язкове</span>}
-        </div>
-      )
-    }
 
     return (
       <div key={key} className="flex flex-col gap-1">
@@ -180,6 +191,19 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
   return (
     <form onSubmit={handleSubmit} className="flex max-h-[75vh] flex-col gap-4 overflow-y-auto pr-1">
 
+      {/* ── Ім'я персонажа — ЗАВЖДИ показується, незалежно від шаблону ── */}
+      <div className="flex flex-col gap-1">
+        <label className="block text-sm text-parchment-dim">
+          Ім'я<span className="ml-1 text-crimson-soft">*</span>
+          <input type="text" value={values.name} onChange={(e) => set('name', e.target.value)}
+            placeholder="Арагорн, Джон Сноу…"
+            className={inputCls(touched && !values.name.trim())} />
+        </label>
+        {touched && !values.name.trim() && (
+          <span className="text-xs text-crimson-soft">Поле обов'язкове</span>
+        )}
+      </div>
+
       {/* ── Шаблон ── */}
       <div className="flex flex-col gap-1">
         <label className="block text-sm text-parchment-dim">
@@ -193,22 +217,31 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
             <select value={values.template_key} onChange={(e) => set('template_key', e.target.value)}
               className={inputCls()}>
               <option value="">— повна анкета (всі поля) —</option>
-              {templates.map((t) => {
-                const key = getTemplateKey(t)
-                return <option key={key} value={key}>{getTemplateLabel(t)}</option>
-              })}
+              {customTemplates.length > 0 && (
+                <optgroup label="Власні шаблони">
+                  {customTemplates.map((t) => (
+                    <option key={`${CUSTOM_PREFIX}${t.id}`} value={`${CUSTOM_PREFIX}${t.id}`}>
+                      {t.template_name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Вбудовані шаблони">
+                {templates.map((t) => {
+                  const key = getTemplateKey(t)
+                  return <option key={key} value={key}>{getTemplateLabel(t)}</option>
+                })}
+              </optgroup>
             </select>
           )}
         </label>
 
-        {/* Опис шаблону */}
         {templateDetail && getTemplateDescription(templateDetail) && (
           <p className="rounded-md bg-ink-700 px-3 py-2 text-xs text-parchment-dim">
             {getTemplateDescription(templateDetail)}
           </p>
         )}
 
-        {/* Кнопка "Згенерувати приклад" */}
         {templateDetail && (
           <button type="button" onClick={handleGenerateExample}
             className="flex w-fit items-center gap-1.5 rounded-md border border-amber-ink/40 px-3 py-1.5 text-xs text-amber-soft hover:bg-amber-ink/10">
@@ -292,7 +325,6 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
           placeholder="герой, маг, злодій…" className={inputCls()} />
       </label>
 
-      {/* ── Валідація ── */}
       {touched && !values.name.trim() && (
         <p className="text-xs text-crimson-soft">Ім'я персонажа не може бути порожнім</p>
       )}

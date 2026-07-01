@@ -13,8 +13,14 @@ const IMPORTANCE_OPTIONS = [
   { value: 'Фонова',       label: '★☆☆ Фонова' },
 ]
 
-// НОВЕ: eras/arcs/branches передаються списком з TimelinePage для вибору у формі
-export default function EventForm({ initial, characters, eras = [], arcs = [], branches = [], defaultBranchId = null, projectId, onSubmit, onCancel, isSubmitting }) {
+// НОВЕ: eras/arcs/branches передаються списком з TimelinePage для вибору у формі.
+// defaultEraId/defaultArcId/defaultBranchId — для швидкого додавання події одразу
+// з прив'язкою (наприклад, з кнопки "Додати подію" в детальному перегляді ери/арки/гілки)
+export default function EventForm({
+  initial, characters, eras = [], arcs = [], branches = [],
+  defaultEraId = null, defaultArcId = null, defaultBranchId = null,
+  projectId, onSubmit, onCancel, isSubmitting,
+}) {
   const isEdit = !!initial
 
   const [title,          setTitle]          = useState(initial?.title          ?? '')
@@ -22,15 +28,20 @@ export default function EventForm({ initial, characters, eras = [], arcs = [], b
   const [eventType,      setEventType]      = useState(initial?.event_type     ?? '')
   const [customType,     setCustomType]     = useState(false)
   const [importance,     setImportance]     = useState(initial?.importance     ?? 'Другорядна')
-  const [year,           setYear]           = useState(initial?.year           ?? '')
+  // ВИПРАВЛЕНО: рік тепер зберігається у формі як невід'ємна величина (магнітуда),
+  // а знак визначається окремим перемикачем isBCE
+  const [year,           setYear]           = useState(
+    initial?.year != null ? String(Math.abs(initial.year)) : ''
+  )
+  const [isBCE,          setIsBCE]          = useState(initial?.year != null && initial.year < 0)
   const [dateLabel,      setDateLabel]      = useState(initial?.date_label     ?? '')
   const [isOngoing,      setIsOngoing]      = useState(initial?.is_ongoing     ?? false)
   const [location,       setLocation]       = useState(initial?.location       ?? '')
   const [tags,           setTags]           = useState(initial?.tags           ?? '')
   const [participantIds, setParticipantIds] = useState(initial?.participant_ids ?? [])
-  const [eraId,          setEraId]          = useState(initial?.era_id ?? '')
-  const [arcId,          setArcId]          = useState(initial?.arc_id ?? '')
-  // НОВЕ: гілка — за замовчуванням підставляється активна лінія, якщо форму відкрито в режимі гілки
+  // НОВЕ: при редагуванні беремо значення з самої події; при створенні — з defaultEraId/defaultArcId
+  const [eraId,          setEraId]          = useState(initial?.era_id ?? defaultEraId ?? '')
+  const [arcId,          setArcId]          = useState(initial?.arc_id ?? defaultArcId ?? '')
   const [branchId,       setBranchId]       = useState(initial?.branch_id ?? defaultBranchId ?? '')
   const [touched,        setTouched]        = useState(false)
 
@@ -50,19 +61,19 @@ export default function EventForm({ initial, characters, eras = [], arcs = [], b
     e.preventDefault()
     setTouched(true)
     if (!title.trim()) return
+    const yearValue = year !== '' ? (isBCE ? -Math.abs(Number(year)) : Math.abs(Number(year))) : null
     onSubmit({
       project_id:      projectId,
       title:           title.trim(),
       description:     description.trim() || '',
       event_type:      eventType || 'Особиста подія',
       importance,
-      year:            year !== '' ? Number(year) : null,
+      year:            yearValue,
       date_label:      dateLabel.trim() || null,
       is_ongoing:      isOngoing,
       location:        location.trim() || null,
       tags:            tags.trim() || null,
       participant_ids: participantIds,
-      // НОВЕ
       era_id:          eraId !== '' ? Number(eraId) : null,
       arc_id:          arcId !== '' ? Number(arcId) : null,
       branch_id:       branchId !== '' ? Number(branchId) : null,
@@ -141,8 +152,13 @@ export default function EventForm({ initial, characters, eras = [], arcs = [], b
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm text-parchment-dim">
           Рік (число)
-          <input type="number" value={year} onChange={(e) => setYear(e.target.value)}
+          <input type="number" min="0" value={year} onChange={(e) => setYear(e.target.value)}
             placeholder="100" className={inputCls()} />
+          <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 text-xs text-parchment-dim/80">
+            <input type="checkbox" checked={isBCE} onChange={(e) => setIsBCE(e.target.checked)}
+              className="accent-amber-ink" />
+            До нашої ери (до н.е.)
+          </label>
         </label>
         <label className="block text-sm text-parchment-dim">
           Мітка часу
@@ -151,7 +167,7 @@ export default function EventForm({ initial, characters, eras = [], arcs = [], b
         </label>
       </div>
 
-      {/* НОВЕ: Ера, Арка та Гілка */}
+      {/* Ера та Арка */}
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm text-parchment-dim">
           Ера (необов'язково)
@@ -169,7 +185,7 @@ export default function EventForm({ initial, characters, eras = [], arcs = [], b
         </label>
       </div>
 
-      {/* НОВЕ: Гілка — якщо обрано, подія належить альтернативній лінії, а не основній */}
+      {/* Гілка — якщо обрано, подія належить альтернативній лінії, а не основній */}
       <label className="block text-sm text-parchment-dim">
         Гілка (необов'язково)
         <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={inputCls()}>

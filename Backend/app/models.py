@@ -447,3 +447,42 @@ class NavItem(Base):
     order_index = Column(Integer, default=0)
 
     folder = relationship("NavFolder", back_populates="items")
+
+
+class CustomTemplate(Base):
+    __tablename__ = "custom_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    template_name = Column(String, nullable=False, default="Новий шаблон")
+    description = Column(Text, default="")
+    role = Column(String, default="Другорядний персонаж")
+    rank = Column(String, default="Другорядний")
+
+    project = relationship("Project", back_populates="custom_templates")
+    fields = relationship(
+        "CustomTemplateField",
+        back_populates="template",
+        cascade="all, delete-orphan",
+        order_by="CustomTemplateField.order_index",
+    )
+
+
+class CustomTemplateField(Base):
+    __tablename__ = "custom_template_fields"
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_id = Column(Integer, ForeignKey("custom_templates.id", ondelete="CASCADE"), index=True)
+    # ВАЖЛИВО: key обмежений фіксованим списком текстових колонок моделі Character
+    # (SELECTABLE_FIELD_KEYS на фронтенді) — це НЕ довільний рядок, інакше
+    # значення поля буде губитись при збереженні персонажа (немає такої колонки в БД)
+    key = Column(String, nullable=False)
+    label = Column(String, nullable=False)
+    type = Column(String, default="textarea")  # 'text' | 'textarea'
+    required = Column(Boolean, default=False)
+    placeholder = Column(String, nullable=True)
+    hint = Column(Text, nullable=True)
+    example = Column(Text, nullable=True)
+    order_index = Column(Integer, default=0)
+
+    template = relationship("CustomTemplate", back_populates="fields")

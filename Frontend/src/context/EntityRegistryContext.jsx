@@ -4,26 +4,29 @@ import { getCharacters } from '../api/characters'
 import { getProjectFactions } from '../api/factions'
 import { getProjectLocations } from '../api/locations'
 import { getProjectWikiArticles } from '../api/wiki'
+import { getProjectCustomPages } from '../api/customPages'
 
 const EntityRegistryContext = createContext(null)
 
 export function EntityRegistryProvider({ children }) {
   const { activeProjectId } = useProject()
-  const [entities, setEntities] = useState({ characters: [], factions: [], locations: [], wikiArticles: [] })
+  // НОВЕ: customPages додано до реєстру
+  const [entities, setEntities] = useState({ characters: [], factions: [], locations: [], wikiArticles: [], customPages: [] })
 
   const load = useCallback(async () => {
     if (!activeProjectId) {
-      setEntities({ characters: [], factions: [], locations: [], wikiArticles: [] })
+      setEntities({ characters: [], factions: [], locations: [], wikiArticles: [], customPages: [] })
       return
     }
     try {
-      const [characters, factions, locations, wikiArticles] = await Promise.all([
+      const [characters, factions, locations, wikiArticles, customPages] = await Promise.all([
         getCharacters(activeProjectId),
         getProjectFactions(activeProjectId),
         getProjectLocations(activeProjectId),
         getProjectWikiArticles(activeProjectId),
+        getProjectCustomPages(activeProjectId),
       ])
-      setEntities({ characters, factions, locations, wikiArticles })
+      setEntities({ characters, factions, locations, wikiArticles, customPages })
     } catch {
       // тихо ігноруємо — посилання просто не резолвляться, без помилки на сторінці
     }
@@ -32,7 +35,7 @@ export function EntityRegistryProvider({ children }) {
   useEffect(() => { load() }, [load])
 
   // Пошук сутності за точною назвою (без урахування регістру) серед усіх типів —
-  // саме цю функцію використовує LinkedText для розпізнавання [[Назва]]
+  // саме цю функцію використовує LinkedText/FormattedText для розпізнавання [[Назва]]
   const resolveLink = useCallback((rawName) => {
     const name = rawName.trim().toLowerCase()
     if (!name) return null
@@ -48,6 +51,11 @@ export function EntityRegistryProvider({ children }) {
 
     const wiki = entities.wikiArticles.find((w) => w.title?.toLowerCase() === name)
     if (wiki) return { type: 'wiki', id: wiki.id, label: wiki.title, path: '/wiki' }
+
+    // НОВЕ: власні сторінки — маршрут інший (/page/:id, прямий перехід без ?focus=,
+    // бо CustomPageDetail бере id з параметра шляху, а не з query)
+    const page = entities.customPages.find((p) => p.title?.toLowerCase() === name)
+    if (page) return { type: 'custom_page', id: page.id, label: page.title, path: `/page/${page.id}`, noFocusParam: true }
 
     return null
   }, [entities])

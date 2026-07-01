@@ -1,19 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Users, Shield, Map, BookText, Clock, X, Loader2 } from 'lucide-react'
+import { Search, Users, Shield, Map, BookText, Clock, FileText, X, Loader2 } from 'lucide-react'
 import { useProject } from '../../context/ProjectContext'
 import { getCharacters } from '../../api/characters'
 import { getProjectFactions } from '../../api/factions'
 import { getProjectLocations } from '../../api/locations'
 import { getProjectWikiArticles } from '../../api/wiki'
 import { getEvents } from '../../api/timeline'
+import { getProjectCustomPages, getProjectCustomPageBlocks } from '../../api/customPages'
 
 const TYPE_META = {
-  character: { label: 'Персонаж', icon: Users, path: '/characters' },
-  faction:   { label: 'Фракція',  icon: Shield, path: '/factions' },
-  location:  { label: 'Локація',  icon: Map, path: '/world-map' },
-  wiki:      { label: 'Стаття',   icon: BookText, path: '/wiki' },
-  event:     { label: 'Подія',    icon: Clock, path: '/timeline' },
+  character:   { label: 'Персонаж',        icon: Users,    path: '/characters' },
+  faction:     { label: 'Фракція',         icon: Shield,   path: '/factions' },
+  location:    { label: 'Локація',         icon: Map,      path: '/world-map' },
+  wiki:        { label: 'Стаття',          icon: BookText, path: '/wiki' },
+  event:       { label: 'Подія',           icon: Clock,    path: '/timeline' },
+  // НОВЕ: власні сторінки — маршрут інший (/page/:id, без ?focus=)
+  custom_page: { label: 'Власна сторінка', icon: FileText, path: '/page' },
 }
 
 const MAX_PER_GROUP = 6
@@ -26,7 +29,11 @@ export default function SearchModal() {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [data, setData] = useState({ characters: [], factions: [], locations: [], wiki: [], events: [] })
+  const [data, setData] = useState({
+    characters: [], factions: [], locations: [], wiki: [], events: [],
+    // НОВЕ
+    customPages: [], customPageBlocks: [],
+  })
 
   // ── Глобальний слухач Ctrl+K / Cmd+K ─────────────────────────────────────
   useEffect(() => {
@@ -55,14 +62,17 @@ export default function SearchModal() {
     if (!activeProjectId) return
     setIsLoading(true)
     try {
-      const [characters, factions, locations, wiki, events] = await Promise.all([
+      const [characters, factions, locations, wiki, events, customPages, customPageBlocks] = await Promise.all([
         getCharacters(activeProjectId),
         getProjectFactions(activeProjectId),
         getProjectLocations(activeProjectId),
         getProjectWikiArticles(activeProjectId),
         getEvents({ project_id: activeProjectId }),
+        // НОВЕ
+        getProjectCustomPages(activeProjectId),
+        getProjectCustomPageBlocks(activeProjectId),
       ])
-      setData({ characters, factions, locations, wiki, events })
+      setData({ characters, factions, locations, wiki, events, customPages, customPageBlocks })
     } catch {
       // мовчки ігноруємо — пошук просто буде порожнім
     } finally {
@@ -78,24 +88,41 @@ export default function SearchModal() {
   const q = query.trim().toLowerCase()
   const match = (text) => text && text.toLowerCase().includes(q)
 
+  // НОВЕ: власна сторінка вважається знайденою, якщо збігається її назва
+  // АБО назва/текст будь-якого з її блоків — саме це і є "пошук по вмісту"
+  const matchCustomPage = (page) => {
+    if (match(page.title)) return true
+    return data.customPageBlocks.some(
+      (b) => b.page_id === page.id && (match(b.title) || match(b.content))
+    )
+  }
+
   const results = q ? {
-    character: data.characters.filter((c) => match(c.name) || match(c.description)).slice(0, MAX_PER_GROUP),
-    faction:   data.factions.filter((f) => match(f.name) || match(f.description)).slice(0, MAX_PER_GROUP),
-    location:  data.locations.filter((l) => match(l.name) || match(l.description)).slice(0, MAX_PER_GROUP),
-    wiki:      data.wiki.filter((w) => match(w.title) || match(w.content)).slice(0, MAX_PER_GROUP),
-    event:     data.events.filter((e) => match(e.title) || match(e.description)).slice(0, MAX_PER_GROUP),
-  } : { character: [], faction: [], location: [], wiki: [], event: [] }
+    character:   data.characters.filter((c) => match(c.name) || match(c.description)).slice(0, MAX_PER_GROUP),
+    faction:     data.factions.filter((f) => match(f.name) || match(f.description)).slice(0, MAX_PER_GROUP),
+    location:    data.locations.filter((l) => match(l.name) || match(l.description)).slice(0, MAX_PER_GROUP),
+    wiki:        data.wiki.filter((w) => match(w.title) || match(w.content)).slice(0, MAX_PER_GROUP),
+    event:       data.events.filter((e) => match(e.title) || match(e.description)).slice(0, MAX_PER_GROUP),
+    // НОВЕ
+    custom_page: data.customPages.filter(matchCustomPage).slice(0, MAX_PER_GROUP),
+  } : { character: [], faction: [], location: [], wiki: [], event: [], custom_page: [] }
 
   const totalResults = Object.values(results).reduce((sum, arr) => sum + arr.length, 0)
 
   const handleSelect = (type, item) => {
     setIsOpen(false)
+    // НОВЕ: власна сторінка переходить напряму за id у шляху, без ?focus=
+    if (type === 'custom_page') {
+      navigate(`/page/${item.id}`)
+      return
+    }
     navigate(`${TYPE_META[type].path}?focus=${item.id}`)
   }
 
   const getLabel = (type, item) => {
     if (type === 'wiki') return item.title
     if (type === 'event') return item.title
+    if (type === 'custom_page') return item.title
     return item.name
   }
 
@@ -117,7 +144,7 @@ export default function SearchModal() {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={activeProjectId ? 'Пошук персонажів, фракцій, локацій, статей, подій…' : 'Спочатку оберіть проєкт'}
+            placeholder={activeProjectId ? 'Пошук персонажів, фракцій, локацій, статей, подій, сторінок…' : 'Спочатку оберіть проєкт'}
             disabled={!activeProjectId}
             className="flex-1 bg-transparent text-sm text-parchment placeholder:text-parchment-dim/50 focus:outline-none"
           />
@@ -135,7 +162,7 @@ export default function SearchModal() {
             </p>
           ) : !q ? (
             <p className="px-3 py-6 text-center text-sm text-parchment-dim/60">
-              Почніть вводити, щоб знайти персонажа, фракцію, локацію, статтю чи подію.
+              Почніть вводити, щоб знайти персонажа, фракцію, локацію, статтю, подію чи власну сторінку.
             </p>
           ) : totalResults === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-parchment-dim">

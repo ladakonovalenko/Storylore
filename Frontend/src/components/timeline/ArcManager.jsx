@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Edit3, Trash2, Check, X, Loader2, Users } from 'lucide-react'
+import { Plus, Edit3, Trash2, Check, X, Loader2, Users, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createArc, updateArc, deleteArc, setArcCharacters } from '../../api/arcs'
 import Modal from '../common/Modal'
@@ -49,7 +49,7 @@ function CharacterRoleEditor({ characters, value, onChange }) {
   )
 }
 
-function ArcRow({ arc, characters, onSaved, onDeleted }) {
+function ArcRow({ arc, characters, onSaved, onDeleted, onView }) {
   const [editing, setEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [draft, setDraft] = useState({
@@ -146,6 +146,11 @@ function ArcRow({ arc, characters, onSaved, onDeleted }) {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {/* НОВЕ: розгорнутий перегляд арки з усіма її подіями */}
+        <button onClick={() => onView(arc)}
+          className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-sky-300" aria-label="Переглянути" title="Переглянути докладно">
+          <Eye size={13} />
+        </button>
         <button onClick={() => setEditing(true)}
           className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-amber-soft" aria-label="Редагувати">
           <Edit3 size={13} />
@@ -159,7 +164,7 @@ function ArcRow({ arc, characters, onSaved, onDeleted }) {
   )
 }
 
-export default function ArcManager({ isOpen, onClose, projectId, arcs, characters, onChange }) {
+export default function ArcManager({ isOpen, onClose, projectId, arcs, characters, onChange, onView }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [goal, setGoal] = useState('')
@@ -215,7 +220,7 @@ export default function ArcManager({ isOpen, onClose, projectId, arcs, character
             <p className="text-sm italic text-parchment-dim/60">Арок ще немає</p>
           ) : (
             arcs.map((arc) => (
-              <ArcRow key={arc.id} arc={arc} characters={characters} onSaved={handleSaved} onDeleted={handleDeleted} />
+              <ArcRow key={arc.id} arc={arc} characters={characters} onSaved={handleSaved} onDeleted={handleDeleted} onView={onView} />
             ))
           )}
         </div>

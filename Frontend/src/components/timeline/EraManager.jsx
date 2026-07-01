@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Edit3, Trash2, Check, X, Loader2 } from 'lucide-react'
+import { Plus, Edit3, Trash2, Check, X, Loader2, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createEra, updateEra, deleteEra } from '../../api/eras'
 import Modal from '../common/Modal'
@@ -8,7 +8,7 @@ import ConfirmDialog from '../common/ConfirmDialog'
 const inputCls =
   'mt-1 w-full rounded-md border border-ink-500 bg-ink-900 px-3 py-2 text-sm text-parchment placeholder:text-parchment-dim/50 focus:border-amber-ink focus:outline-none'
 
-function EraRow({ era, onSaved, onDeleted }) {
+function EraRow({ era, onSaved, onDeleted, onView }) {
   const [editing, setEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [draft, setDraft] = useState({
@@ -88,6 +88,11 @@ function EraRow({ era, onSaved, onDeleted }) {
         {era.description && <p className="mt-1 text-xs text-parchment-dim">{era.description}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {/* НОВЕ: розгорнутий перегляд ери з усіма її подіями */}
+        <button onClick={() => onView(era)}
+          className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-violet-300" aria-label="Переглянути" title="Переглянути докладно">
+          <Eye size={13} />
+        </button>
         <button onClick={() => setEditing(true)}
           className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-amber-soft" aria-label="Редагувати">
           <Edit3 size={13} />
@@ -101,7 +106,7 @@ function EraRow({ era, onSaved, onDeleted }) {
   )
 }
 
-export default function EraManager({ isOpen, onClose, projectId, eras, onChange }) {
+export default function EraManager({ isOpen, onClose, projectId, eras, onChange, onView }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [startYear, setStartYear] = useState('')
@@ -164,7 +169,7 @@ export default function EraManager({ isOpen, onClose, projectId, eras, onChange 
             <p className="text-sm italic text-parchment-dim/60">Ер ще немає</p>
           ) : (
             eras.map((era) => (
-              <EraRow key={era.id} era={era} onSaved={handleSaved} onDeleted={handleDeleted} />
+              <EraRow key={era.id} era={era} onSaved={handleSaved} onDeleted={handleDeleted} onView={onView} />
             ))
           )}
         </div>

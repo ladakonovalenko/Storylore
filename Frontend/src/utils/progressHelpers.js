@@ -1,10 +1,13 @@
 import { normalizeFields } from './templateFields'
+
 /**
  * Підраховує відсоток заповненості анкети персонажа.
  *
  * Базові текстові поля перевіряємо завжди.
- * Динамічні поля беремо з нормалізованого шаблону (через існуючу утиліту normalizeFields).
- * Поля типу select, boolean, number — не рахуємо (не текстові).
+ * Якщо є шаблон — рахуємо саме його поля (плюс базові).
+ * Якщо шаблону немає (персонаж створений через "повну анкету") —
+ * рахуємо ВСІ текстові поля моделі Character, інакше прогрес
+ * враховує лише 5 базових полів і не бачить решту заповненого.
  *
  * @param {object} character - об'єкт персонажа
  * @param {object|null} templateDetail - повний об'єкт шаблону з API (або null)
@@ -13,18 +16,33 @@ import { normalizeFields } from './templateFields'
 export function calcProgress(character, templateDetail) {
   if (!character) return { filled: 0, total: 0, percent: 0 }
   const TEXT_TYPES = new Set(['text', 'textarea', 'string', undefined, null, ''])
-  // ВИПРАВЛЕНО: ключі приведені у відповідність до моделі Character (models.py)
-  // background -> biography, motivation -> motivation_goals
+
+  // ВИПРАВЛЕНО: прибрано 'notes' — такого поля немає в моделі Character (models.py),
+  // тому воно завжди було порожнім і штучно занижувало відсоток.
   const BASE_KEYS = new Set([
-    'name', 'description', 'biography', 'appearance', 'motivation_goals', 'notes',
+    'name', 'description', 'biography', 'appearance', 'motivation_goals',
   ])
+
+  // НОВЕ: повний список текстових полів моделі Character — узгоджений
+  // з ALL_FIELDS у CharacterForm.jsx та EXTRA_DETAIL_FIELDS у CharacterDetail.jsx.
+  // Використовується, коли персонаж НЕ прив'язаний до шаблону (templateDetail === null),
+  // інакше прогрес рахував лише 5 базових полів, ігноруючи решту заповненої анкети.
+  const FULL_MODEL_KEYS = [
+    ...BASE_KEYS,
+    'character_traits', 'fears_vulnerabilities', 'values_beliefs', 'self_perception',
+    'traumas', 'secrets', 'family_origin', 'social_status', 'character_arc',
+    'unresolved_conflicts', 'skills', 'resources', 'physical_limitations',
+    'psychological_limitations', 'habits_routines', 'reputation',
+    'communication_style', 'allies_perception', 'enemies_perception',
+    'contrasts', 'symbols',
+  ]
+
   const entries = [] // { key, isText }
-  // 1. Базові поля
-  for (const key of BASE_KEYS) {
-    entries.push({ key, isText: true })
-  }
-  // 2. Динамічні поля шаблону через normalizeFields (з templateFields.js)
+
   if (templateDetail) {
+    // Є шаблон — базові поля + поля шаблону
+    for (const key of BASE_KEYS) entries.push({ key, isText: true })
+
     const fields = normalizeFields(templateDetail)
     for (const field of fields) {
       if (BASE_KEYS.has(field.key)) continue
@@ -32,7 +50,11 @@ export function calcProgress(character, templateDetail) {
       const isText = TEXT_TYPES.has(field.type)
       if (isText) entries.push({ key: field.key, isText: true })
     }
+  } else {
+    // Немає шаблону ("повна анкета") — рахуємо всі текстові поля моделі
+    for (const key of FULL_MODEL_KEYS) entries.push({ key, isText: true })
   }
+
   const total = entries.length
   if (total === 0) return { filled: 0, total: 0, percent: 0 }
   const filled = entries.filter(({ key }) => {
@@ -41,6 +63,7 @@ export function calcProgress(character, templateDetail) {
   }).length
   return { filled, total, percent: Math.round((filled / total) * 100) }
 }
+
 /** Tailwind-клас кольору фону прогрес-бару */
 export function progressBarColor(percent) {
   if (percent >= 80) return 'bg-moss-soft'

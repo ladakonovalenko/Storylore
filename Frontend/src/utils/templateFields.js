@@ -85,3 +85,36 @@ export function generateExampleValues(template) {
   }
   return result
 }
+
+// НОВЕ: фіксований список текстових полів моделі Character, доступних для
+// власних шаблонів. Це НЕ довільний список — кожен ключ відповідає реальній
+// колонці в БД (узгоджено з ALL_FIELDS у CharacterForm.jsx). Власний шаблон
+// обирає підмножину цих полів і дає їм свої підписи/підказки/приклади —
+// так само, як влаштовані шаблони вже роблять.
+export const SELECTABLE_FIELD_KEYS = [
+  { key: 'description',               label: 'Опис' },
+  { key: 'biography',                 label: 'Передісторія' },
+  { key: 'appearance',                label: 'Зовнішність' },
+  { key: 'motivation_goals',          label: 'Мотивація та цілі' },
+  { key: 'character_traits',          label: 'Риси характеру' },
+  { key: 'fears_vulnerabilities',     label: 'Страхи та вразливості' },
+  { key: 'values_beliefs',            label: 'Цінності та переконання' },
+  { key: 'self_perception',           label: 'Самосприйняття' },
+  { key: 'traumas',                   label: 'Травми' },
+  { key: 'secrets',                   label: 'Таємниці' },
+  { key: 'family_origin',             label: 'Походження' },
+  { key: 'social_status',             label: 'Соціальний статус' },
+  { key: 'character_arc',             label: 'Арка персонажа' },
+  { key: 'unresolved_conflicts',      label: 'Невирішені конфлікти' },
+  { key: 'skills',                    label: 'Навички' },
+  { key: 'resources',                 label: 'Ресурси' },
+  { key: 'physical_limitations',      label: 'Фізичні обмеження' },
+  { key: 'psychological_limitations', label: 'Психологічні обмеження' },
+  { key: 'habits_routines',           label: 'Звички та розпорядок' },
+  { key: 'reputation',                label: 'Репутація' },
+  { key: 'communication_style',       label: 'Стиль спілкування' },
+  { key: 'allies_perception',         label: 'Сприйняття союзників' },
+  { key: 'enemies_perception',        label: 'Сприйняття ворогів' },
+  { key: 'contrasts',                 label: 'Контрасти' },
+  { key: 'symbols',                   label: 'Символи' },
+]

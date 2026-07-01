@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { useEntityRegistry } from '../../context/EntityRegistryContext'
 
-// Парсить [[Назва]] у тексті: якщо персонаж/локація/фракція/стаття з такою назвою
-// існує в проєкті — рендерить клікабельне посилання, інакше — звичайний приглушений
-// текст із дужками (щоб було видно, що посилання ще не "знайшло пару").
+// Парсить [[Назва]] у тексті: якщо персонаж/локація/фракція/стаття/власна сторінка
+// з такою назвою існує в проєкті — рендерить клікабельне посилання, інакше —
+// звичайний приглушений текст із дужками (щоб було видно, що посилання ще не "знайшло пару").
 export default function LinkedText({ text, className = '' }) {
   const { resolveLink } = useEntityRegistry()
   const navigate = useNavigate()
@@ -35,7 +35,13 @@ export default function LinkedText({ text, className = '' }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation()
-              navigate(`${resolved.path}?focus=${resolved.id}`)
+              // ВИПРАВЛЕНО: власні сторінки мають інший маршрут (/page/:id як параметр
+              // шляху, а не ?focus=) — CustomPageDetail бере id з useParams, не з query
+              if (resolved.noFocusParam) {
+                navigate(resolved.path)
+              } else {
+                navigate(`${resolved.path}?focus=${resolved.id}`)
+              }
             }}
             className="text-amber-soft underline decoration-dotted underline-offset-2 hover:text-amber-ink"
             title={`Перейти до: ${resolved.label}`}

@@ -25,6 +25,13 @@ export const getCustomPageBlocks = async (pageId) => {
   return data
 }
 
+// НОВЕ: усі блоки всіх власних сторінок проєкту одним запитом —
+// для пошуку по вмісту в SearchModal (щоб не робити запит на кожну сторінку окремо)
+export const getProjectCustomPageBlocks = async (projectId) => {
+  const { data } = await client.get(`/projects/${projectId}/custom-pages/blocks`)
+  return data
+}
+
 export const createCustomPageBlock = async (payload) => {
   const { data } = await client.post('/custom-page-blocks', payload)
   return data

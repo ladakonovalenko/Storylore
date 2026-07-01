@@ -1,7 +1,7 @@
-import { BookOpen, Check, Edit3, Trash2 } from 'lucide-react'
+import { BookOpen, Check, Edit3, Trash2, Download, Loader2 } from 'lucide-react'
 import InkStroke from '../layout/InkStroke'
 
-export default function ProjectCard({ project, isActive, onSelect, onEdit, onDelete }) {
+export default function ProjectCard({ project, isActive, onSelect, onEdit, onDelete, onExport, isExporting }) {
   const title = project.title || project.name || 'Без назви'
   const description = project.description || project.summary
 
@@ -30,6 +30,16 @@ export default function ProjectCard({ project, isActive, onSelect, onEdit, onDel
           </div>
 
           <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            {/* НОВЕ: експорт усього проєкту в Markdown */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onExport?.() }}
+              disabled={isExporting}
+              className="rounded p-1.5 text-parchment-dim transition-colors hover:bg-ink-700 hover:text-amber-soft disabled:opacity-50"
+              aria-label="Завантажити як Markdown"
+              title="Завантажити як Markdown"
+            >
+              {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            </button>
             <button
               onClick={(e) => { e.stopPropagation(); onEdit?.() }}
               className="rounded p-1.5 text-parchment-dim transition-colors hover:bg-ink-700 hover:text-amber-soft"

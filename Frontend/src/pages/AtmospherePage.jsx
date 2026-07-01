@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Music, Image as ImageIcon, Trash2, ExternalLink, Loader2 } from 'lucide-react'
+import { Plus, Music, Image as ImageIcon, Trash2, ExternalLink, Loader2, Pencil, ImageOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useProject } from '../context/ProjectContext'
-import { getProjectSoundtracks, createSoundtrack, deleteSoundtrack } from '../api/soundtracks'
-import { getProjectMoodboardImages, createMoodboardImage, deleteMoodboardImage } from '../api/moodboard'
+import { getProjectSoundtracks, createSoundtrack, updateSoundtrack, deleteSoundtrack } from '../api/soundtracks'
+import { getProjectMoodboardImages, createMoodboardImage, updateMoodboardImage, deleteMoodboardImage } from '../api/moodboard'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import InkStroke from '../components/layout/InkStroke'
@@ -11,12 +11,12 @@ import InkStroke from '../components/layout/InkStroke'
 const inputCls =
   'mt-1 w-full rounded-md border border-ink-500 bg-ink-900 px-3 py-2 text-sm text-parchment placeholder:text-parchment-dim/50 focus:border-amber-ink focus:outline-none'
 
-// ── Форма треку ────────────────────────────────────────────────────────────────
-function SoundtrackForm({ onSubmit, onCancel, isSubmitting }) {
-  const [title, setTitle] = useState('')
-  const [artist, setArtist] = useState('')
-  const [url, setUrl] = useState('')
-  const [note, setNote] = useState('')
+// ── Форма треку (тепер універсальна: створення + редагування) ──────────────────
+function SoundtrackForm({ initial, onSubmit, onCancel, isSubmitting }) {
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [artist, setArtist] = useState(initial?.artist ?? '')
+  const [url, setUrl] = useState(initial?.url ?? '')
+  const [note, setNote] = useState(initial?.note ?? '')
   const [touched, setTouched] = useState(false)
 
   const handleSubmit = (e) => {
@@ -54,17 +54,17 @@ function SoundtrackForm({ onSubmit, onCancel, isSubmitting }) {
         <button type="submit" disabled={isSubmitting}
           className="flex items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft disabled:opacity-60">
           {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-          Додати трек
+          {initial ? 'Зберегти зміни' : 'Додати трек'}
         </button>
       </div>
     </form>
   )
 }
 
-// ── Форма зображення ──────────────────────────────────────────────────────────
-function MoodboardForm({ onSubmit, onCancel, isSubmitting }) {
-  const [imageUrl, setImageUrl] = useState('')
-  const [caption, setCaption] = useState('')
+// ── Форма зображення (тепер універсальна: створення + редагування) ─────────────
+function MoodboardForm({ initial, onSubmit, onCancel, isSubmitting }) {
+  const [imageUrl, setImageUrl] = useState(initial?.image_url ?? '')
+  const [caption, setCaption] = useState(initial?.caption ?? '')
   const [touched, setTouched] = useState(false)
 
   const handleSubmit = (e) => {
@@ -74,6 +74,11 @@ function MoodboardForm({ onSubmit, onCancel, isSubmitting }) {
     onSubmit({ image_url: imageUrl.trim(), caption: caption.trim() || null })
   }
 
+  // НОВЕ: попереджаємо одразу у формі, якщо посилання схоже на сторінку Pinterest
+  // (pinterest.com/pin/...), а не на пряме зображення — це і є причина,
+  // чому картинка потім не відображається.
+  const looksLikePinterestPage = /pinterest\.[a-z.]+\/pin\//i.test(imageUrl) && !/\.(jpe?g|png|webp|gif)(\?|$)/i.test(imageUrl)
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="block text-sm text-parchment-dim">
@@ -82,8 +87,16 @@ function MoodboardForm({ onSubmit, onCancel, isSubmitting }) {
           placeholder="https://i.pinimg.com/…" className={inputCls} />
         {touched && !imageUrl.trim() && <span className="mt-1 block text-xs text-crimson-soft">Обов'язкове поле</span>}
         <span className="mt-1 block text-xs text-parchment-dim/50">
-          Скопіюйте посилання на зображення з Pinterest чи будь-якого сайту (правий клік → «Копіювати адресу зображення»)
+          Потрібне саме пряме посилання на файл зображення, а не на сторінку.
+          На Pinterest: відкрийте пін на весь екран → правий клік по фото → «Копіювати адресу зображення»
+          (адреса має виглядати як <code>https://i.pinimg.com/…</code>, а не <code>pinterest.com/pin/…</code>).
         </span>
+        {looksLikePinterestPage && (
+          <span className="mt-1.5 block rounded-md bg-amber-ink/10 px-2.5 py-1.5 text-xs text-amber-soft">
+            ⚠ Схоже, це посилання на сторінку піна, а не на саму картинку — вона, ймовірно, не відобразиться.
+            Скопіюйте адресу зображення, як описано вище.
+          </span>
+        )}
       </label>
       <label className="block text-sm text-parchment-dim">
         Підпис (необов'язково)
@@ -97,10 +110,56 @@ function MoodboardForm({ onSubmit, onCancel, isSubmitting }) {
         <button type="submit" disabled={isSubmitting}
           className="flex items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft disabled:opacity-60">
           {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-          Додати зображення
+          {initial ? 'Зберегти зміни' : 'Додати зображення'}
         </button>
       </div>
     </form>
+  )
+}
+
+// НОВЕ: картка зображення мудборду з обробкою помилки завантаження —
+// якщо пряме посилання все ж не відкривається (наприклад, Pinterest
+// згодом змінив/видалив файл), показуємо акуратний fallback замість
+// зламаної іконки браузера, і даємо посилання відкрити оригінал.
+function MoodboardImageCard({ img, onEdit, onDelete }) {
+  const [broken, setBroken] = useState(false)
+
+  return (
+    <div className="group relative overflow-hidden rounded-lg border border-ink-500 bg-ink-800">
+      {broken ? (
+        <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 bg-ink-700 px-3 text-center">
+          <ImageOff size={22} className="text-parchment-dim" />
+          <p className="text-xs text-parchment-dim">Зображення не завантажилось</p>
+          <a href={img.image_url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-amber-soft hover:underline">
+            <ExternalLink size={11} /> Відкрити посилання
+          </a>
+        </div>
+      ) : (
+        <img
+          src={img.image_url}
+          alt={img.caption || ''}
+          className="aspect-square w-full object-cover"
+          loading="lazy"
+          onError={() => setBroken(true)}
+        />
+      )}
+
+      <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <button onClick={() => onEdit(img)}
+          className="rounded bg-ink-900/80 p-1.5 text-parchment-dim hover:text-amber-soft" aria-label="Редагувати">
+          <Pencil size={13} />
+        </button>
+        <button onClick={() => onDelete(img)}
+          className="rounded bg-ink-900/80 p-1.5 text-parchment-dim hover:text-crimson-soft" aria-label="Видалити">
+          <Trash2 size={13} />
+        </button>
+      </div>
+
+      {img.caption && (
+        <p className="bg-ink-900/80 px-2 py-1.5 text-xs text-parchment-dim">{img.caption}</p>
+      )}
+    </div>
   )
 }
 
@@ -117,6 +176,9 @@ export default function AtmospherePage() {
 
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false)
   const [isImageModalOpen, setIsImageModalOpen] = useState(false)
+  // НОВЕ: окремий стан для редагованого елемента — якщо не null, модалка працює в режимі "редагувати"
+  const [editingTrack, setEditingTrack] = useState(null)
+  const [editingImage, setEditingImage] = useState(null)
   const [deletingTrack, setDeletingTrack] = useState(null)
   const [deletingImage, setDeletingImage] = useState(null)
 
@@ -139,19 +201,31 @@ export default function AtmospherePage() {
 
   useEffect(() => { load() }, [load])
 
-  const handleCreateTrack = async (payload) => {
+  // ── Треки: створення або редагування одним обробником ──────────────────────
+  const handleSubmitTrack = async (payload) => {
     setIsSubmitting(true)
     try {
-      const created = await createSoundtrack({ ...payload, project_id: activeProjectId })
-      setTracks((prev) => [created, ...prev])
-      toast.success('Трек додано')
+      if (editingTrack) {
+        const updated = await updateSoundtrack(editingTrack.id, payload)
+        setTracks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+        toast.success('Трек оновлено')
+      } else {
+        const created = await createSoundtrack({ ...payload, project_id: activeProjectId })
+        setTracks((prev) => [created, ...prev])
+        toast.success('Трек додано')
+      }
       setIsTrackModalOpen(false)
+      setEditingTrack(null)
     } catch (err) {
       toast.error(err.message)
     } finally {
       setIsSubmitting(false)
     }
   }
+
+  const openEditTrack = (track) => { setEditingTrack(track); setIsTrackModalOpen(true) }
+  const openNewTrack = () => { setEditingTrack(null); setIsTrackModalOpen(true) }
+  const closeTrackModal = () => { setIsTrackModalOpen(false); setEditingTrack(null) }
 
   const handleDeleteTrack = async () => {
     if (!deletingTrack) return
@@ -164,19 +238,31 @@ export default function AtmospherePage() {
     }
   }
 
-  const handleCreateImage = async (payload) => {
+  // ── Зображення: створення або редагування одним обробником ─────────────────
+  const handleSubmitImage = async (payload) => {
     setIsSubmitting(true)
     try {
-      const created = await createMoodboardImage({ ...payload, project_id: activeProjectId })
-      setImages((prev) => [created, ...prev])
-      toast.success('Зображення додано')
+      if (editingImage) {
+        const updated = await updateMoodboardImage(editingImage.id, payload)
+        setImages((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
+        toast.success('Зображення оновлено')
+      } else {
+        const created = await createMoodboardImage({ ...payload, project_id: activeProjectId })
+        setImages((prev) => [created, ...prev])
+        toast.success('Зображення додано')
+      }
       setIsImageModalOpen(false)
+      setEditingImage(null)
     } catch (err) {
       toast.error(err.message)
     } finally {
       setIsSubmitting(false)
     }
   }
+
+  const openEditImage = (img) => { setEditingImage(img); setIsImageModalOpen(true) }
+  const openNewImage = () => { setEditingImage(null); setIsImageModalOpen(true) }
+  const closeImageModal = () => { setIsImageModalOpen(false); setEditingImage(null) }
 
   const handleDeleteImage = async () => {
     if (!deletingImage) return
@@ -206,7 +292,7 @@ export default function AtmospherePage() {
         <button
           onClick={() => {
             if (!activeProjectId) { toast.error('Спочатку оберіть активний проєкт'); return }
-            tab === 'music' ? setIsTrackModalOpen(true) : setIsImageModalOpen(true)
+            tab === 'music' ? openNewTrack() : openNewImage()
           }}
           className="flex items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft"
         >
@@ -262,10 +348,16 @@ export default function AtmospherePage() {
                       <p className="truncate font-display text-base font-medium text-parchment">{t.title}</p>
                       {t.artist && <p className="truncate text-sm text-parchment-dim">{t.artist}</p>}
                     </div>
-                    <button onClick={() => setDeletingTrack(t)}
-                      className="shrink-0 rounded p-1 text-parchment-dim opacity-0 transition-opacity hover:bg-crimson-dim/30 hover:text-crimson-soft group-hover:opacity-100">
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button onClick={() => openEditTrack(t)}
+                        className="rounded p-1 text-parchment-dim hover:bg-amber-ink/10 hover:text-amber-soft" aria-label="Редагувати">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => setDeletingTrack(t)}
+                        className="rounded p-1 text-parchment-dim hover:bg-crimson-dim/30 hover:text-crimson-soft" aria-label="Видалити">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                   {t.note && <p className="mt-2 text-sm text-parchment-dim">{t.note}</p>}
                   <a href={t.url} target="_blank" rel="noopener noreferrer"
@@ -285,17 +377,11 @@ export default function AtmospherePage() {
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {images.map((img) => (
-                <div key={img.id} className="group relative overflow-hidden rounded-lg border border-ink-500 bg-ink-800">
-                  <img src={img.image_url} alt={img.caption || ''}
-                    className="aspect-square w-full object-cover" loading="lazy" />
-                  <button onClick={() => setDeletingImage(img)}
-                    className="absolute right-2 top-2 rounded bg-ink-900/80 p-1.5 text-parchment-dim opacity-0 transition-opacity hover:text-crimson-soft group-hover:opacity-100">
-                    <Trash2 size={13} />
-                  </button>
-                  {img.caption && (
-                    <p className="bg-ink-900/80 px-2 py-1.5 text-xs text-parchment-dim">{img.caption}</p>
-                  )}
-                </div>
+                <MoodboardImageCard
+                  key={img.id} img={img}
+                  onEdit={openEditImage}
+                  onDelete={(i) => setDeletingImage(i)}
+                />
               ))}
             </div>
           )
@@ -303,11 +389,11 @@ export default function AtmospherePage() {
       </div>
 
       {/* Модалки */}
-      <Modal title="Новий трек" isOpen={isTrackModalOpen} onClose={() => setIsTrackModalOpen(false)}>
-        <SoundtrackForm onSubmit={handleCreateTrack} onCancel={() => setIsTrackModalOpen(false)} isSubmitting={isSubmitting} />
+      <Modal title={editingTrack ? 'Редагувати трек' : 'Новий трек'} isOpen={isTrackModalOpen} onClose={closeTrackModal}>
+        <SoundtrackForm initial={editingTrack} onSubmit={handleSubmitTrack} onCancel={closeTrackModal} isSubmitting={isSubmitting} />
       </Modal>
-      <Modal title="Нове зображення" isOpen={isImageModalOpen} onClose={() => setIsImageModalOpen(false)}>
-        <MoodboardForm onSubmit={handleCreateImage} onCancel={() => setIsImageModalOpen(false)} isSubmitting={isSubmitting} />
+      <Modal title={editingImage ? 'Редагувати зображення' : 'Нове зображення'} isOpen={isImageModalOpen} onClose={closeImageModal}>
+        <MoodboardForm initial={editingImage} onSubmit={handleSubmitImage} onCancel={closeImageModal} isSubmitting={isSubmitting} />
       </Modal>
 
       <ConfirmDialog

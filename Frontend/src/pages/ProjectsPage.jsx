@@ -3,6 +3,7 @@ import { Plus, BookOpen, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useProject } from '../context/ProjectContext'
 import { createProject, updateProject, deleteProject } from '../api/projects'
+import { exportProjectMarkdown } from '../api/export'
 import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import ProjectCard from '../components/projects/ProjectCard'
@@ -101,13 +102,14 @@ export default function ProjectsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // НОВЕ: стан для редагування
   const [editingProject, setEditingProject] = useState(null) // null = закрито, об'єкт = редагуємо
   const [isUpdating, setIsUpdating] = useState(false)
 
-  // НОВЕ: стан для видалення
   const [deletingProject, setDeletingProject] = useState(null) // null = закрито
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // НОВЕ: id проєкту, який зараз експортується (для індикатора завантаження на конкретній картці)
+  const [exportingId, setExportingId] = useState(null)
 
   const handleCreate = async (payload) => {
     setIsSubmitting(true)
@@ -126,7 +128,6 @@ export default function ProjectsPage() {
     }
   }
 
-  // НОВЕ: збереження редагування
   const handleUpdate = async (payload) => {
     if (!editingProject) return
     setIsUpdating(true)
@@ -142,14 +143,12 @@ export default function ProjectsPage() {
     }
   }
 
-  // НОВЕ: підтверджене видалення
   const handleDelete = async () => {
     if (!deletingProject) return
     setIsDeleting(true)
     try {
       await deleteProject(deletingProject.id)
       await refreshProjects()
-      // Якщо видалили активний проєкт — скидаємо активний вибір
       if (String(activeProjectId) === String(deletingProject.id)) {
         setActiveProjectId(null)
       }
@@ -159,6 +158,19 @@ export default function ProjectsPage() {
       toast.error(err.message)
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  // НОВЕ: експорт проєкту в Markdown
+  const handleExport = async (project) => {
+    setExportingId(project.id)
+    try {
+      await exportProjectMarkdown(project.id, project.title || project.name)
+      toast.success(`«${project.title || project.name}» завантажено як Markdown`)
+    } catch (err) {
+      toast.error(err.message || 'Не вдалося експортувати проєкт')
+    } finally {
+      setExportingId(null)
     }
   }
 
@@ -217,10 +229,10 @@ export default function ProjectsPage() {
                   setActiveProjectId(project.id)
                   toast.success(`«${project.title || project.name}» тепер активний проєкт`)
                 }}
-                // НОВЕ: пропси для редагування/видалення.
-                // ProjectCard.jsx ще потрібно доповнити кнопками, які їх викликають.
                 onEdit={() => setEditingProject(project)}
                 onDelete={() => setDeletingProject(project)}
+                onExport={() => handleExport(project)}
+                isExporting={exportingId === project.id}
               />
             ))}
           </div>
@@ -236,7 +248,7 @@ export default function ProjectsPage() {
         />
       </Modal>
 
-      {/* НОВЕ: Модалка редагування */}
+      {/* Модалка редагування */}
       <Modal
         title="Редагувати проєкт"
         isOpen={!!editingProject}
@@ -250,7 +262,7 @@ export default function ProjectsPage() {
         />
       </Modal>
 
-      {/* НОВЕ: Діалог підтвердження видалення */}
+      {/* Діалог підтвердження видалення */}
       <ConfirmDialog
         isOpen={!!deletingProject}
         onClose={() => setDeletingProject(null)}
