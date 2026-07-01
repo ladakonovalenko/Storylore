@@ -10,9 +10,6 @@ import ConfirmDialog from '../common/ConfirmDialog'
 import InkStroke from '../layout/InkStroke'
 import LinkedText from '../common/LinkedText'
 
-// ВИПРАВЛЕНО: статус тепер зберігається й порівнюється як український рядок —
-// саме так його записує CharacterForm.jsx ('Живий'/'Загиблий'/'Невідомо'),
-// тому ключі STATUS_MAP мають з ним збігатися, інакше статус завжди "застрягав" на Невідомо
 const STATUS_MAP = {
   'Живий':    { label: 'Живий',    cls: 'text-moss-soft bg-moss-dim/20 ring-moss-soft' },
   'Загиблий': { label: 'Загиблий', cls: 'text-crimson-soft bg-crimson-dim/20 ring-crimson-soft' },
@@ -32,8 +29,6 @@ const BASE_DETAIL_FIELDS = [
   { key: 'notes',            label: 'Нотатки',      type: 'textarea' },
 ]
 
-// НОВЕ: решта полів анкети — раніше редагувались лише при створенні персонажа,
-// а в деталях узагалі не показувались. Список узгоджений з ALL_FIELDS у CharacterForm.jsx.
 const EXTRA_DETAIL_FIELDS = [
   { key: 'character_traits',          label: 'Риси характеру',          type: 'textarea' },
   { key: 'fears_vulnerabilities',     label: 'Страхи та вразливості',   type: 'textarea' },
@@ -60,11 +55,10 @@ const EXTRA_DETAIL_FIELDS = [
 
 const SKIP_KEYS = new Set([
   'id', 'name', 'description', 'biography', 'appearance', 'motivation_goals', 'notes',
-  'status', 'tags', 'template_key', 'project_id', 'created_at', 'updated_at',
+  'status', 'tags', 'template_key', 'project_id', 'created_at', 'updated_at', 'image_url',
   ...EXTRA_DETAIL_FIELDS.map((f) => f.key),
 ])
 
-// ── Inline-поле ──────────────────────────────────────────────────────────────
 function InlineField({ label, value, fieldKey, type = 'text', onSave, isSaving }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value ?? '')
@@ -132,14 +126,74 @@ function InlineField({ label, value, fieldKey, type = 'text', onSave, isSaving }
   )
 }
 
-// ── Головний компонент ────────────────────────────────────────────────────────
+// НОВЕ: блок зображення персонажа — велике фото зверху з можливістю редагувати посилання
+function ImageField({ imageUrl, onSave, isSaving }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(imageUrl ?? '')
+  const [broken, setBroken] = useState(false)
+
+  const commit = async () => {
+    if (draft === (imageUrl ?? '')) { setEditing(false); return }
+    await onSave('image_url', draft)
+    setBroken(false)
+    setEditing(false)
+  }
+  const cancel = () => { setDraft(imageUrl ?? ''); setEditing(false) }
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-2">
+        <input
+          autoFocus value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="https://i.pinimg.com/…"
+          className="w-full rounded-md border border-amber-ink bg-ink-900 px-3 py-2 text-sm text-parchment focus:outline-none"
+        />
+        <div className="flex justify-end gap-2">
+          <button onClick={cancel} className="rounded px-3 py-1 text-xs text-parchment-dim hover:bg-ink-700">
+            Скасувати
+          </button>
+          <button onClick={commit} disabled={isSaving}
+            className="flex items-center gap-1 rounded bg-amber-ink px-3 py-1 text-xs font-medium text-ink-900 hover:bg-amber-soft disabled:opacity-60">
+            {isSaving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+            Зберегти
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="group/img relative">
+      {imageUrl && !broken ? (
+        <img
+          src={imageUrl} alt=""
+          className="h-40 w-40 rounded-lg border border-ink-500 object-cover"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-dashed border-ink-500 bg-ink-900">
+          <User size={32} className="text-parchment-dim/40" strokeWidth={1.5} />
+        </div>
+      )}
+      <button
+        onClick={() => { setDraft(imageUrl ?? ''); setEditing(true) }}
+        className="absolute -bottom-2 -right-2 rounded-full bg-ink-700 p-1.5 text-parchment-dim opacity-0 shadow transition-opacity hover:text-amber-soft group-hover/img:opacity-100"
+        aria-label="Редагувати зображення"
+        title="Змінити зображення"
+      >
+        <Edit3 size={13} />
+      </button>
+    </div>
+  )
+}
+
 export default function CharacterDetail({
   character: init, templateDetail, onClose, onUpdated, onDeleted,
 }) {
   const [character, setCharacter] = useState(init)
   const [isSaving, setIsSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  // НОВЕ: показ/приховування довгого списку додаткових полів
   const [showAllFields, setShowAllFields] = useState(false)
 
   const { percent } = calcProgress(character, templateDetail)
@@ -171,7 +225,6 @@ export default function CharacterDetail({
     }
   }
 
-  // Динамічні поля шаблону
   const extraFields = templateDetail
     ? normalizeFields(templateDetail).filter(
         (f) => !SKIP_KEYS.has(f.key) &&
@@ -183,14 +236,18 @@ export default function CharacterDetail({
     <div className="flex flex-col gap-6">
       {/* Заголовок */}
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <User size={16} className="shrink-0 text-parchment-dim" />
-            <h2 className="font-display text-2xl font-medium text-parchment truncate">
-              {character.name}
-            </h2>
+        {/* НОВЕ: зображення персонажа поруч з іменем */}
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          <ImageField imageUrl={character.image_url} onSave={saveField} isSaving={isSaving} />
+          <div className="min-w-0 flex-1 pt-1">
+            <div className="flex items-center gap-2">
+              <User size={16} className="shrink-0 text-parchment-dim" />
+              <h2 className="font-display text-2xl font-medium text-parchment truncate">
+                {character.name}
+              </h2>
+            </div>
+            <InkStroke className="mt-1" width={80} color="var(--amber-ink)" />
           </div>
-          <InkStroke className="mt-1" width={80} color="var(--amber-ink)" />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button onClick={() => setConfirmDelete(true)}
@@ -209,7 +266,6 @@ export default function CharacterDetail({
       {/* Прогрес */}
       <ProgressBar percent={percent} />
 
-      {/* Радар-діаграма заповненості за категоріями */}
       <div>
         <span className="text-xs font-medium uppercase tracking-widest text-parchment-dim/70">
           Баланс анкети
@@ -267,7 +323,6 @@ export default function CharacterDetail({
         ))}
       </div>
 
-      {/* НОВЕ: перемикач і решта полів анкети */}
       <div className="border-t border-ink-500 pt-4">
         <button
           onClick={() => setShowAllFields((v) => !v)}
@@ -288,7 +343,6 @@ export default function CharacterDetail({
         )}
       </div>
 
-      {/* Поля шаблону */}
       {extraFields.length > 0 && (
         <div className="flex flex-col gap-5 border-t border-ink-500 pt-4">
           <span className="text-xs font-medium uppercase tracking-widest text-parchment-dim/70">
@@ -304,7 +358,6 @@ export default function CharacterDetail({
         </div>
       )}
 
-      {/* Мета */}
       <div className="border-t border-ink-500 pt-3 text-xs text-parchment-dim/60">
         {character.template_key && <p>Шаблон: {character.template_key}</p>}
         {character.project_id && <p>Проєкт ID: {character.project_id}</p>}

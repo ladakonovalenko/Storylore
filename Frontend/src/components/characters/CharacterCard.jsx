@@ -2,7 +2,6 @@ import { Trash2, User, ChevronRight } from 'lucide-react'
 import { calcProgress } from '../../utils/progressHelpers'
 import ProgressBar from './ProgressBar'
 
-// ✅ ВИПРАВЛЕНО: ключі відповідають рядкам у БД
 const STATUS_MAP = {
   'Живий':    { label: 'Живий',    cls: 'text-moss-soft bg-moss-dim/20' },
   'Загиблий': { label: 'Загиблий', cls: 'text-crimson-soft bg-crimson-dim/20' },
@@ -11,10 +10,7 @@ const STATUS_MAP = {
 
 export default function CharacterCard({ character, templateDetail, onSelect, onDelete }) {
   const { percent } = calcProgress(character, templateDetail)
-
-  // ✅ Шукаємо статус за українським рядком
   const status = STATUS_MAP[character.status] ?? STATUS_MAP['Невідомо']
-
   const snippet = character.description || character.biography || character.appearance || ''
 
   return (
@@ -22,7 +18,16 @@ export default function CharacterCard({ character, templateDetail, onSelect, onD
       {/* Шапка */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <User size={15} strokeWidth={1.75} className="shrink-0 text-parchment-dim" />
+          {/* НОВЕ: аватар персонажа замість іконки, якщо є зображення */}
+          {character.image_url ? (
+            <img
+              src={character.image_url} alt=""
+              className="h-7 w-7 shrink-0 rounded-full border border-ink-500 object-cover"
+              onError={(e) => { e.target.style.display = 'none' }}
+            />
+          ) : (
+            <User size={15} strokeWidth={1.75} className="shrink-0 text-parchment-dim" />
+          )}
           <h3
             className="cursor-pointer truncate font-display text-lg font-medium text-parchment transition-colors hover:text-amber-soft"
             onClick={() => onSelect(character)}
@@ -44,14 +49,12 @@ export default function CharacterCard({ character, templateDetail, onSelect, onD
         </div>
       </div>
 
-      {/* Роль */}
       {character.role && (
         <span className="mt-2 w-fit rounded-full bg-ink-700 px-2 py-0.5 text-xs text-parchment-dim">
           {character.role}
         </span>
       )}
 
-      {/* Теги */}
       {(() => {
         const tagsList = Array.isArray(character.tags)
           ? character.tags
@@ -67,12 +70,10 @@ export default function CharacterCard({ character, templateDetail, onSelect, onD
         ) : null
       })()}
 
-      {/* Сніппет */}
       {snippet && (
         <p className="mt-2 line-clamp-2 text-sm text-parchment-dim">{snippet}</p>
       )}
 
-      {/* Прогрес */}
       <div className="mt-auto pt-3">
         <ProgressBar percent={percent} compact />
       </div>

@@ -15,9 +15,6 @@ const ROLE_OPTIONS = [
   'Другорядний персонаж', 'Союзник', 'Суперник', 'Нейтральний',
 ]
 
-// Всі поля моделі — показуємо коли немає шаблону або "показати всі".
-// ВАЖЛИВО: 'name' лишається тут для сумісності зі старою логікою підказок/прикладів,
-// але фактично рендериться окремо (див. нижче) — тому виключається з fieldsToShow.
 const ALL_FIELDS = [
   { key: 'name',                     label: "Ім'я",                    type: 'text',     required: true  },
   { key: 'description',              label: 'Опис',                    type: 'textarea'  },
@@ -68,6 +65,7 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
     reputation: '', communication_style: '', allies_perception: '',
     enemies_perception: '', contrasts: '', symbols: '',
     role: 'Протагоніст', status: 'Живий', template_key: '',
+    image_url: '', // НОВЕ
     ...initial,
     tags: Array.isArray(initial.tags) ? initial.tags.join(', ') : (initial.tags ?? ''),
   })
@@ -147,8 +145,6 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
       err ? 'border-crimson-soft' : 'border-ink-500 focus:border-amber-ink'
     }`
 
-  // ВИПРАВЛЕНО: 'name' прибирається зі списку полів шаблону/усіх полів —
-  // рендериться окремо, завжди, незалежно від обраного шаблону (нижче)
   const templateFields = templateDetail ? normalizeFields(templateDetail).filter((f) => f.key !== 'name') : []
   const hasTemplate    = templateFields.length > 0
   const fieldsToShow   = (hasTemplate && !showAllFields ? templateFields : ALL_FIELDS).filter((f) => f.key !== 'name')
@@ -171,11 +167,9 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
               placeholder={placeholder ?? ''} className={inputCls(isError)} />
           )}
         </label>
-        {/* Підказка */}
         {hint && (
           <p className="text-xs text-parchment-dim/60">{hint}</p>
         )}
-        {/* Приклад */}
         {example && !val && (
           <button type="button"
             onClick={() => set(key, example)}
@@ -201,6 +195,26 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
         </label>
         {touched && !values.name.trim() && (
           <span className="text-xs text-crimson-soft">Поле обов'язкове</span>
+        )}
+      </div>
+
+      {/* ── НОВЕ: зображення персонажа ── */}
+      <div className="flex flex-col gap-1">
+        <label className="block text-sm text-parchment-dim">
+          Посилання на зображення (необов'язково)
+          <input type="text" value={values.image_url} onChange={(e) => set('image_url', e.target.value)}
+            placeholder="https://i.pinimg.com/…" className={inputCls()} />
+        </label>
+        <span className="text-xs text-parchment-dim/50">
+          Пряме посилання на файл зображення (не на сторінку сайту).
+        </span>
+        {values.image_url && (
+          <img
+            src={values.image_url} alt=""
+            className="mt-1 h-32 w-32 rounded-md border border-ink-500 object-cover"
+            onError={(e) => { e.target.style.display = 'none' }}
+            onLoad={(e) => { e.target.style.display = 'block' }}
+          />
         )}
       </div>
 
@@ -267,7 +281,6 @@ export default function CharacterForm({ initial = {}, projectId, onSubmit, onCan
         )}
       </fieldset>
 
-      {/* Перемикач "показати всі поля" */}
       {hasTemplate && (
         <button type="button"
           onClick={() => setShowAllFields((v) => !v)}

@@ -7,19 +7,18 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
   const name        = faction.name        || faction.title   || 'Без назви'
   const description = faction.description || faction.summary || ''
 
-  // НОВЕ: персонажі, що зараз прив'язані до цієї фракції — рахуємо з повного списку проєкту
   const members = characters.filter((c) => c.faction_id === faction.id)
 
-  // ── Inline-редагування ───────────────────────────────────────────────────
   const [editing, setEditing]     = useState(false)
   const [isSaving, setIsSaving]   = useState(false)
+  const [imgBroken, setImgBroken] = useState(false) // НОВЕ
   const [draft, setDraft]         = useState({
     name:        faction.name        || '',
     description: faction.description || '',
     type:        faction.type        || '',
     alignment:   faction.alignment   || '',
     leader:      faction.leader      || '',
-    // НОВЕ: попередньо заповнюємо поточними учасниками
+    image_url:   faction.image_url   || '', // НОВЕ
     characterIds: members.map((c) => c.id),
   })
 
@@ -30,6 +29,7 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
       type:        faction.type        || '',
       alignment:   faction.alignment   || '',
       leader:      faction.leader      || '',
+      image_url:   faction.image_url   || '', // НОВЕ
       characterIds: characters.filter((c) => c.faction_id === faction.id).map((c) => c.id),
     })
     setEditing(true)
@@ -54,9 +54,10 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
         type:        draft.type.trim()        || undefined,
         alignment:   draft.alignment.trim()   || undefined,
         leader:      draft.leader.trim()      || undefined,
+        image_url:   draft.image_url.trim()   || undefined, // НОВЕ
       })
-      // НОВЕ: окремим запитом оновлюємо склад персонажів
       await onAssignCharacters?.(faction.id, draft.characterIds)
+      setImgBroken(false)
       setEditing(false)
     } finally {
       setIsSaving(false)
@@ -79,6 +80,24 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
           <input value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
             className={inputCls} />
         </label>
+
+        {/* НОВЕ: зображення/герб */}
+        <div className="flex flex-col gap-1">
+          <label className="block text-xs text-parchment-dim">
+            Посилання на зображення / герб
+            <input value={draft.image_url} onChange={(e) => setDraft((p) => ({ ...p, image_url: e.target.value }))}
+              placeholder="https://i.pinimg.com/…" className={inputCls} />
+          </label>
+          {draft.image_url && (
+            <img
+              src={draft.image_url} alt=""
+              className="mt-1 h-20 w-20 rounded-md border border-ink-500 object-cover"
+              onError={(e) => { e.target.style.display = 'none' }}
+              onLoad={(e) => { e.target.style.display = 'block' }}
+            />
+          )}
+        </div>
+
         <label className="block text-xs text-parchment-dim">
           Опис
           <textarea value={draft.description} rows={3}
@@ -101,7 +120,6 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
             className={inputCls} />
         </label>
 
-        {/* НОВЕ: мультивибір персонажів */}
         <div className="block text-xs text-parchment-dim">
           Персонажі фракції
           {characters.length === 0 ? (
@@ -154,7 +172,16 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
     <div className="group flex flex-col rounded-lg border border-ink-500 bg-ink-800 px-5 py-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-parchment-dim">
-          <Shield size={15} strokeWidth={1.75} />
+          {/* НОВЕ: зображення/герб замість іконки, якщо є */}
+          {faction.image_url && !imgBroken ? (
+            <img
+              src={faction.image_url} alt=""
+              className="h-6 w-6 rounded-full border border-ink-500 object-cover"
+              onError={() => setImgBroken(true)}
+            />
+          ) : (
+            <Shield size={15} strokeWidth={1.75} />
+          )}
           {faction.type && (
             <span className="rounded-full bg-ink-700 px-2 py-0.5 text-xs text-parchment-dim">
               {faction.type}
@@ -200,7 +227,6 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
         </p>
       )}
 
-      {/* НОВЕ: список учасників фракції */}
       <div className="mt-3 flex items-start gap-1.5 border-t border-ink-500 pt-3 text-xs text-parchment-dim">
         <Users size={13} className="mt-0.5 shrink-0" />
         {members.length === 0 ? (

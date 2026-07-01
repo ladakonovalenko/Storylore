@@ -71,7 +71,7 @@ class Faction(Base):
     type        = Column(String, nullable=True)
     alignment   = Column(String, nullable=True)
     leader      = Column(String, nullable=True)
-
+    image_url = Column(String, nullable=True)
     project    = relationship("Project",   back_populates="factions")
     characters = relationship("Character", back_populates="faction")
 
@@ -159,7 +159,7 @@ class Character(Base):
     contrasts                 = Column(Text, default="")
     symbols                   = Column(Text, default="")
     main_location             = Column(String, default="Невідомо")
-
+    image_url = Column(String, nullable=True)
     project = relationship("Project",        back_populates="characters")
     faction = relationship("Faction",        back_populates="characters")
     events  = relationship("CharacterEvent", back_populates="character", cascade="all, delete-orphan")

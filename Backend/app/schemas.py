@@ -72,6 +72,7 @@ class FactionCreate(BaseModel):
     type:        Optional[str] = None
     alignment:   Optional[str] = None
     leader:      Optional[str] = None
+    image_url: Optional[str] = None
 
 class FactionUpdate(BaseModel):
     name:        Optional[str] = None
@@ -79,6 +80,7 @@ class FactionUpdate(BaseModel):
     type:        Optional[str] = None
     alignment:   Optional[str] = None
     leader:      Optional[str] = None
+    image_url: Optional[str] = None
 
 class FactionCharacterAssignment(BaseModel):
     character_ids: List[int] = []
@@ -91,6 +93,7 @@ class FactionResponse(BaseModel):
     type:        Optional[str] = None
     alignment:   Optional[str] = None
     leader:      Optional[str] = None
+    image_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -189,6 +192,7 @@ class CharacterCreate(BaseModel):
     enemies_perception:        Optional[str]          = ""
     contrasts:                 Optional[str]          = ""
     symbols:                   Optional[str]          = ""
+    image_url: Optional[str] = None
 
 # ✅ ВИПРАВЛЕНО: всі поля Optional — можна оновлювати будь-яке одне поле
 # без необхідності передавати весь об'єкт
@@ -228,6 +232,7 @@ class CharacterUpdate(BaseModel):
     enemies_perception:        Optional[str]          = None
     contrasts:                 Optional[str]          = None
     symbols:                   Optional[str]          = None
+    image_url: Optional[str] = None
 
 class CharacterResponse(CharacterCreate):
     id: int

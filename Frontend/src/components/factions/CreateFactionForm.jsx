@@ -7,7 +7,7 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
   const [type, setType]               = useState('')
   const [alignment, setAlignment]     = useState('')
   const [leader, setLeader]           = useState('')
-  // НОВЕ: обрані персонажі-учасники фракції
+  const [imageUrl, setImageUrl]       = useState('') // НОВЕ
   const [characterIds, setCharacterIds] = useState([])
   const [touched, setTouched]         = useState(false)
 
@@ -30,7 +30,8 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
       type: type.trim() || undefined,
       alignment: alignment.trim() || undefined,
       leader: leader.trim() || undefined,
-      character_ids: characterIds, // НОВЕ: FactionsPage сам відокремить це поле перед запитом створення
+      image_url: imageUrl.trim() || undefined, // НОВЕ
+      character_ids: characterIds,
     }
     onSubmit(payload)
   }
@@ -54,6 +55,26 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
           <span className="mt-1 text-xs text-crimson-soft">Назва обов'язкова</span>
         )}
       </label>
+
+      {/* НОВЕ: зображення/герб фракції */}
+      <div className="flex flex-col gap-1">
+        <label className="block text-sm text-parchment-dim">
+          Посилання на зображення / герб (необов'язково)
+          <input
+            value={imageUrl} onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="https://i.pinimg.com/…"
+            className={inputCls()}
+          />
+        </label>
+        {imageUrl && (
+          <img
+            src={imageUrl} alt=""
+            className="mt-1 h-24 w-24 rounded-md border border-ink-500 object-cover"
+            onError={(e) => { e.target.style.display = 'none' }}
+            onLoad={(e) => { e.target.style.display = 'block' }}
+          />
+        )}
+      </div>
 
       {/* Опис */}
       <label className="block text-sm text-parchment-dim">
@@ -95,7 +116,7 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
         />
       </label>
 
-      {/* НОВЕ: Персонажі-учасники */}
+      {/* Персонажі-учасники */}
       <div className="block text-sm text-parchment-dim">
         Персонажі фракції (необов'язково)
         {characters.length === 0 ? (

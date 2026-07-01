@@ -11,6 +11,8 @@ COLUMNS_TO_ENSURE = [
     ("events", "branch_id", "INTEGER"),
     ("locations", "dimension_id", "INTEGER"),
     ("projects", "cover_url", "VARCHAR"),
+    ("characters", "image_url", "VARCHAR"),  # НОВЕ
+    ("factions", "image_url", "VARCHAR"),    # НОВЕ
 ]
 
 
