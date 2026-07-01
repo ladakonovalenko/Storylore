@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Фон: заокруглений квадрат у фірмовому фіолетовому кольорі сайту -->
+  <rect width="512" height="512" rx="112" fill="#7C3AED"/>
+  <rect width="512" height="512" rx="112" fill="url(#grad)" fill-opacity="0.25"/>
+
+  <!-- Відкрита книга, стилізована під іконку BookOpen -->
+  <g transform="translate(256 266)" stroke="#F5F1E8" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Ліва сторінка -->
+    <path d="M -8 -96 C -60 -118 -120 -118 -168 -100 L -168 88 C -120 70 -60 70 -8 92 Z"/>
+    <!-- Права сторінка -->
+    <path d="M 8 -96 C 60 -118 120 -118 168 -100 L 168 88 C 120 70 60 70 8 92 Z"/>
+    <!-- Корінець -->
+    <path d="M -8 -96 L -8 92" />
+    <path d="M 8 -96 L 8 92" />
+  </g>
+
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+  </defs>
+</svg>
