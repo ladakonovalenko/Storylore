@@ -42,15 +42,21 @@ export default function LoginPage() {
             />
           </label>
 
-          <label className="block text-sm text-parchment-dim">
-            Пароль
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm text-parchment-dim">Пароль</label>
+              {/* НОВЕ: посилання на відновлення пароля */}
+              <Link to="/forgot-password" className="text-xs text-amber-soft hover:underline">
+                Забули пароль?
+              </Link>
+            </div>
             <input
               type="password" value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className={inputCls} required
             />
-          </label>
+          </div>
 
           {error && (
             <p className="rounded-md border border-crimson-dim bg-crimson-dim/10 px-3 py-2 text-xs text-crimson-soft">
@@ -67,14 +73,12 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* ✅ Роздільник */}
         <div className="my-5 flex items-center gap-3">
           <div className="h-px flex-1 bg-ink-500" />
           <span className="text-xs text-parchment-dim/50">або</span>
           <div className="h-px flex-1 bg-ink-500" />
         </div>
 
-        {/* ✅ Кнопка гостя */}
         <button
           onClick={continueAsGuest}
           className="w-full rounded-md border border-ink-500 py-2 text-sm text-parchment-dim transition-colors hover:border-ink-300 hover:text-parchment"

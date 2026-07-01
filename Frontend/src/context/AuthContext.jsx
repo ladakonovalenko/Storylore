@@ -65,11 +65,24 @@ export function AuthProvider({ children }) {
     setIsGuest(false)
   }
 
+  // НОВЕ: запит на скидання пароля — надсилає лист з посиланням, якщо email існує
+  const forgotPassword = async (email) => {
+    const { data } = await client.post('/auth/forgot-password', { email })
+    return data
+  }
+
+  // НОВЕ: встановлення нового пароля за токеном з листа
+  const resetPassword = async (token, newPassword) => {
+    const { data } = await client.post('/auth/reset-password', { token, new_password: newPassword })
+    return data
+  }
+
   return (
     <AuthContext.Provider value={{
-      user, setUser,   // ✅ setUser доступний компонентам
+      user, setUser,
       isGuest, isLoading,
       login, register, logout, continueAsGuest,
+      forgotPassword, resetPassword, // НОВЕ
     }}>
       {children}
     </AuthContext.Provider>

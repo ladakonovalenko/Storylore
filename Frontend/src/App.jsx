@@ -8,6 +8,8 @@ import ProtectedRoute  from './components/common/ProtectedRoute'
 import Layout          from './components/layout/Layout'
 import LoginPage       from './pages/LoginPage'
 import RegisterPage    from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage  from './pages/ResetPasswordPage'
 import ProfilePage     from './pages/ProfilePage'
 import ProjectsPage    from './pages/ProjectsPage'
 import TemplatesPage   from './pages/TemplatesPage'
@@ -33,7 +35,6 @@ export default function App() {
             position="top-right"
             toastOptions={{
               style: {
-                // НОВЕ: кольори через CSS-змінні — toast сам перемикається з темою
                 background: 'var(--ink-700)',
                 color: 'var(--parchment)',
                 border: '1px solid var(--ink-500)',
@@ -44,6 +45,9 @@ export default function App() {
             {/* Публічні сторінки — без Layout і без перевірки токена */}
             <Route path="/login"    element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            {/* НОВЕ: відновлення пароля */}
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password"  element={<ResetPasswordPage />} />
 
             {/* Захищені сторінки — редірект на /login якщо не авторизований */}
             <Route element={<ProtectedRoute />}>

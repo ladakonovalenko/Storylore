@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List
 from urllib.parse import quote
 from .auth import hash_password, verify_password, create_access_token, create_refresh_token, get_current_user
+import secrets
+import json
+import urllib.request
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -259,6 +263,51 @@ def _owned_custom_template_field(db: Session, field_id: int, user: models.User) 
     return obj
 
 
+def _send_password_reset_email(to_email: str, reset_link: str):
+    """Надсилає лист через Resend API. Використовує лише стандартну бібліотеку
+    Python (urllib) — не потребує встановлення додаткових pip-пакетів."""
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        # Якщо ключ не налаштований — тихо пропускаємо (щоб не валити запит користувача)
+        return
+
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
+      <h2 style="color: #7C3AED;">Скидання пароля StoryLore</h2>
+      <p>Ви (або хтось інший) запросили скидання пароля для вашого акаунту.</p>
+      <p>
+        <a href="{reset_link}"
+           style="display:inline-block;padding:10px 20px;background:#7C3AED;color:#fff;
+                  text-decoration:none;border-radius:6px;font-weight:600;">
+          Встановити новий пароль
+        </a>
+      </p>
+      <p style="color:#666;font-size:13px;">
+        Посилання дійсне протягом 1 години. Якщо ви не запитували скидання пароля —
+        просто ігноруйте цей лист, ваш акаунт лишається в безпеці.
+      </p>
+    </div>
+    """
+
+    payload = json.dumps({
+        "from": "StoryLore <onboarding@resend.dev>",
+        "to": [to_email],
+        "subject": "Скидання пароля StoryLore",
+        "html": html,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=10)
+    except Exception:
+        # Не валимо запит користувача через тимчасовий збій пошти
+        pass
+
 # ==========================================
 # 🔐 АВТОРИЗАЦІЯ (Auth)
 # ==========================================
@@ -334,6 +383,53 @@ def change_password(
     current_user.password_hash = hash_password(payload.new_password)
     db.commit()
     return {"detail": "Пароль оновлено"}
+
+
+@router.post("/auth/forgot-password", tags=["Auth"])
+def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    # ВАЖЛИВО: завжди повертаємо однакову відповідь незалежно від того, чи існує
+    # такий email — інакше можна було б "перевіряти" список зареєстрованих email
+    generic_response = {"detail": "Якщо такий email зареєстрований, лист із інструкціями надіслано."}
+
+    user = db.query(models.User).filter(models.User.email == payload.email.lower().strip()).first()
+    if not user:
+        return generic_response
+
+    token = secrets.token_urlsafe(32)
+    reset_token = models.PasswordResetToken(
+        user_id=user.id,
+        token=token,
+        expires_at=datetime.utcnow() + timedelta(hours=1),
+    )
+    db.add(reset_token)
+    db.commit()
+
+    frontend_url = os.environ.get("FRONTEND_URL", "https://storylore-nine.vercel.app")
+    reset_link = f"{frontend_url}/reset-password?token={token}"
+    _send_password_reset_email(user.email, reset_link)
+
+    return generic_response
+
+
+@router.post("/auth/reset-password", tags=["Auth"])
+def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    reset_token = db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.token == payload.token,
+        models.PasswordResetToken.used == False,
+    ).first()
+
+    if not reset_token or reset_token.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Посилання недійсне або застаріле. Запросіть нове.")
+
+    user = db.query(models.User).filter(models.User.id == reset_token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Користувача не знайдено")
+
+    user.password_hash = hash_password(payload.new_password)
+    reset_token.used = True
+    db.commit()
+
+    return {"detail": "Пароль оновлено. Тепер увійдіть з новим паролем."}
 
 # ==========================================
 # 📑 ШАБЛОНИ (вбудовані — статичні дані, спільні для всіх, не потребують авторизації)

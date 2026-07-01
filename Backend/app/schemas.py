@@ -768,3 +768,13 @@ class CustomTemplateResponse(BaseModel):
     rank: str
     fields: List[CustomTemplateFieldResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- ВІДНОВЛЕННЯ ПАРОЛЯ ---
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
