@@ -51,6 +51,7 @@ export default function CharactersPage() {
   // ВИПРАВЛЕНО: передаємо activeProjectId у запит, щоб бекенд сам фільтрував
   // (раніше завантажувались усі персонажі з усіх проєктів)
   const load = useCallback(async () => {
+    if (!activeProjectId) { setCharacters([]); setIsLoading(false); return }
     setIsLoading(true); setError(null)
     try {
       const data = await getCharacters(activeProjectId)
@@ -274,7 +275,15 @@ export default function CharactersPage() {
         </div>
 
         {/* Список / стани */}
-        {isLoading ? (
+        {!activeProjectId ? (
+          <div className="flex flex-col items-center rounded-lg border border-dashed border-ink-500 px-6 py-16 text-center">
+            <Users size={28} strokeWidth={1.5} className="text-parchment-dim" />
+            <h3 className="mt-4 font-display text-xl text-parchment">Проєкт не обрано</h3>
+            <p className="mt-2 max-w-sm text-sm text-parchment-dim">
+              Персонажі прив'язані до конкретного проєкту. Оберіть або створіть проєкт.
+            </p>
+          </div>
+        ) : isLoading ? (
           <div className="flex flex-1 items-center justify-center gap-2 text-parchment-dim">
             <Loader2 size={20} className="animate-spin" />
             <span className="text-sm">Завантаження…</span>
