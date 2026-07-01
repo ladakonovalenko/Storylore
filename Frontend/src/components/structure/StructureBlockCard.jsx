@@ -153,7 +153,7 @@ export default function StructureBlockCard({
         ) : (
           <div className="group/content mt-2 flex items-start gap-1.5">
             {/* ВИПРАВЛЕНО: вміст тепер рендериться через FormattedText —
-                підтримує **жирний**/*курсив*/списки та [[посилання]] */}
+                підтримує жирний, курсив, списки та [[посилання]] */}
             <div className="min-w-0 flex-1 select-text text-sm text-parchment-dim [&_p]:my-0.5">
               {block.content
                 ? <FormattedText text={block.content} />
