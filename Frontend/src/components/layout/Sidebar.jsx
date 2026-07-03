@@ -3,7 +3,7 @@ import { NavLink, Link, useLocation } from 'react-router-dom'
 import {
   BookOpen, Users, Shield, GitBranch, Map, Clock, BookText,
   Bell, ListTree, Sparkles, Layers, FileText,
-  Settings, ChevronDown, ChevronRight, Folder, File,
+  Settings, ChevronDown, ChevronRight, Folder, File, X,
 } from 'lucide-react'
 import InkStroke from './InkStroke'
 import NavSettingsModal from './NavSettingsModal'
@@ -54,7 +54,7 @@ function NavItemLink({ to, label, icon: Icon }) {
   )
 }
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = false, onClose }) {
   const { activeProjectId } = useProject()
   const location = useLocation()
 
@@ -111,85 +111,116 @@ export default function Sidebar() {
     return { label: found?.title ?? 'Сторінка', icon: File, to: `/page/${item.item_key}` }
   }
 
+  // НОВЕ: клік по будь-якому пункту навігації (посиланню) закриває мобільне меню.
+  // Клік по кнопці "розгорнути папку" — не закриває (це не <a>, а <button>)
+  const handleNavAreaClick = (e) => {
+    if (e.target.closest('a')) onClose?.()
+  }
+
   return (
-    <aside className="flex h-full w-60 flex-col border-r border-ink-500 bg-ink-800 px-3 py-5">
-      <Link to="/profile" className="mb-8 px-3 transition-opacity hover:opacity-80">
-        <span className="font-display text-xl font-semibold tracking-wide text-parchment">
-          StoryLore
-        </span>
-        <p className="mt-1 text-xs text-parchment-dim">майстерня світобудови</p>
-      </Link>
+    <>
+      {/* НОВЕ: затемнення фону на мобільних, коли меню висунуте — клік закриває меню */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-        {/* Фіксовані пункти, що не призначені в жодну папку */}
-        {ungroupedBaseItems.map((item) => (
-          <NavItemLink key={item.key} to={item.to} label={item.label} icon={item.icon} />
-        ))}
-
-        {/* Власні сторінки проєкту, що не призначені в жодну папку */}
-        {ungroupedCustomPages.map((page) => (
-          <NavItemLink key={`page-${page.id}`} to={`/page/${page.id}`} label={page.title} icon={File} />
-        ))}
-
-        {/* НОВЕ: папки */}
-        {folders.map((folder) => {
-          const isOpen = !!expandedFolders[folder.id]
-          const folderItems = folder.items || []
-          const isFolderActive = folderItems.some((item) => {
-            const { to } = resolveItemLabelIcon(item)
-            return location.pathname === to
-          })
-          return (
-            <div key={folder.id}>
-              <button
-                onClick={() => toggleFolder(folder.id)}
-                className={`flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors ${
-                  isFolderActive ? 'text-amber-soft' : 'text-parchment-dim hover:bg-ink-700/60 hover:text-parchment'
-                }`}
-              >
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <Folder size={16} strokeWidth={1.75} />
-                <span className="truncate">{folder.name}</span>
-              </button>
-              {isOpen && (
-                <div className="ml-4 flex flex-col gap-0.5 border-l border-ink-500 pl-2">
-                  {folderItems.length === 0 ? (
-                    <p className="px-3 py-1 text-xs italic text-parchment-dim/50">Порожньо</p>
-                  ) : (
-                    folderItems.map((item) => {
-                      const { label, icon, to } = resolveItemLabelIcon(item)
-                      return <NavItemLink key={item.id} to={to} label={label} icon={icon} />
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </nav>
-
-      {/* НОВЕ: налаштування навігації */}
-      <button
-        onClick={() => setIsSettingsOpen(true)}
-        className="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-parchment-dim hover:bg-ink-700/60 hover:text-parchment"
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 flex-col border-r border-ink-500 bg-ink-800 px-3 py-5 transition-transform duration-300 ease-in-out md:static md:z-auto md:w-60 md:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
-        <Settings size={14} /> Налаштувати меню
-      </button>
+        <div className="mb-8 flex items-start justify-between px-3">
+          <Link to="/profile" className="transition-opacity hover:opacity-80" onClick={onClose}>
+            <span className="font-display text-xl font-semibold tracking-wide text-parchment">
+              StoryLore
+            </span>
+            <p className="mt-1 text-xs text-parchment-dim">майстерня світобудови</p>
+          </Link>
+          {/* НОВЕ: кнопка закриття — лише на мобільних */}
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-parchment-dim hover:bg-ink-700 hover:text-parchment md:hidden"
+            aria-label="Закрити меню"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-      <div className="px-3 pt-2 text-xs text-parchment-dim">
-        <p>Бекенд: 127.0.0.1:8001</p>
-      </div>
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto" onClick={handleNavAreaClick}>
+          {/* Фіксовані пункти, що не призначені в жодну папку */}
+          {ungroupedBaseItems.map((item) => (
+            <NavItemLink key={item.key} to={item.to} label={item.label} icon={item.icon} />
+          ))}
 
-      <NavSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        activeProjectId={activeProjectId}
-        customPages={customPages}
-        setCustomPages={setCustomPages}
-        folders={folders}
-        setFolders={setFolders}
-        builtInItems={BASE_NAV_ITEMS.map((b) => ({ key: b.key, label: b.label }))}
-      />
-    </aside>
+          {/* Власні сторінки проєкту, що не призначені в жодну папку */}
+          {ungroupedCustomPages.map((page) => (
+            <NavItemLink key={`page-${page.id}`} to={`/page/${page.id}`} label={page.title} icon={File} />
+          ))}
+
+          {/* Папки */}
+          {folders.map((folder) => {
+            const isFolderOpen = !!expandedFolders[folder.id]
+            const folderItems = folder.items || []
+            const isFolderActive = folderItems.some((item) => {
+              const { to } = resolveItemLabelIcon(item)
+              return location.pathname === to
+            })
+            return (
+              <div key={folder.id}>
+                <button
+                  onClick={() => toggleFolder(folder.id)}
+                  className={`flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition-colors ${
+                    isFolderActive ? 'text-amber-soft' : 'text-parchment-dim hover:bg-ink-700/60 hover:text-parchment'
+                  }`}
+                >
+                  {isFolderOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <Folder size={16} strokeWidth={1.75} />
+                  <span className="truncate">{folder.name}</span>
+                </button>
+                {isFolderOpen && (
+                  <div className="ml-4 flex flex-col gap-0.5 border-l border-ink-500 pl-2">
+                    {folderItems.length === 0 ? (
+                      <p className="px-3 py-1 text-xs italic text-parchment-dim/50">Порожньо</p>
+                    ) : (
+                      folderItems.map((item) => {
+                        const { label, icon, to } = resolveItemLabelIcon(item)
+                        return <NavItemLink key={item.id} to={to} label={label} icon={icon} />
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </nav>
+
+        {/* Налаштування навігації */}
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-parchment-dim hover:bg-ink-700/60 hover:text-parchment"
+        >
+          <Settings size={14} /> Налаштувати меню
+        </button>
+
+        <div className="px-3 pt-2 text-xs text-parchment-dim">
+          <p>Бекенд: 127.0.0.1:8001</p>
+        </div>
+
+        <NavSettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          activeProjectId={activeProjectId}
+          customPages={customPages}
+          setCustomPages={setCustomPages}
+          folders={folders}
+          setFolders={setFolders}
+          builtInItems={BASE_NAV_ITEMS.map((b) => ({ key: b.key, label: b.label }))}
+        />
+      </aside>
+    </>
   )
 }
