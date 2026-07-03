@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 export default function Modal({ title, isOpen, onClose, children, maxWidth = 'max-w-md' }) {
@@ -13,16 +14,22 @@ export default function Modal({ title, isOpen, onClose, children, maxWidth = 'ma
 
   if (!isOpen) return null
 
-  return (
+  // ВИПРАВЛЕНО: рендеримо через createPortal напряму в document.body.
+  // Причина: якщо модалка викликається з компонента, вкладеного всередину
+  // елемента з CSS transform (наприклад, Sidebar.jsx під час анімації
+  // висувного мобільного меню — translate-x-0/-translate-x-full), то
+  // position: fixed усередині такого елемента починає позиціонуватись
+  // відносно ЦЬОГО елемента, а не всього екрана — модалка "застрягає"
+  // у вузькому просторі сайдбару замість того, щоб покрити весь viewport.
+  // Portal повністю обходить цю проблему незалежно від того, де в дереві
+  // компонентів модалку викликано.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      {/* НОВЕ: клас modal-panel — виключає це вікно з глобального hover-підняття
-          карток (index.css), яке інакше випадково зачіпало б і модалку через
-          той самий набір класів rounded-lg + border-ink-500 */}
       <div
         className={`modal-panel w-full ${maxWidth} rounded-lg border border-ink-500 bg-ink-800 shadow-2xl`}
       >
@@ -38,6 +45,7 @@ export default function Modal({ title, isOpen, onClose, children, maxWidth = 'ma
         </div>
         <div className="px-5 py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -123,19 +123,36 @@ export default function CustomPageDetail() {
     setDragIndex(index)
   }
 
-  const handleDragEnd = async () => {
-    setDragIndex(null)
-    setDragOverIndex(null)
+  const persistOrder = async (nextBlocks) => {
     try {
-      await reorderCustomPageBlocks(pageId, blocks.map((b) => b.id))
+      await reorderCustomPageBlocks(pageId, nextBlocks.map((b) => b.id))
     } catch (err) {
       toast.error('Не вдалося зберегти новий порядок')
     }
   }
 
+  const handleDragEnd = async () => {
+    setDragIndex(null)
+    setDragOverIndex(null)
+    await persistOrder(blocks)
+  }
+
+  // НОВЕ: переміщення кнопками вгору/вниз — тач-дружня альтернатива для
+  // пристроїв, де нативний HTML5 drag-and-drop не працює (телефони, планшети).
+  // Раніше цих обробників тут не було — саме тому стрілочки в картці блоку
+  // показувались, але нічого не робили при натисканні.
+  const handleMove = (index, direction) => async () => {
+    const newIndex = index + direction
+    if (newIndex < 0 || newIndex >= blocks.length) return
+    const next = [...blocks]
+    ;[next[index], next[newIndex]] = [next[newIndex], next[index]]
+    setBlocks(next)
+    await persistOrder(next)
+  }
+
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           {editingTitle ? (
             <div className="flex items-center gap-2">
@@ -196,10 +213,14 @@ export default function CustomPageDetail() {
                 block={block}
                 isDragging={dragIndex === index}
                 isDragOver={dragOverIndex === index}
+                isFirst={index === 0}
+                isLast={index === blocks.length - 1}
                 onDragStart={handleDragStart(index)}
                 onDragOver={handleDragOver(index)}
                 onDragEnd={handleDragEnd}
                 onDrop={(e) => e.preventDefault()}
+                onMoveUp={handleMove(index, -1)}
+                onMoveDown={handleMove(index, 1)}
                 onSaveTitle={(title) => handleSaveTitle(block, title)}
                 onSaveContent={(content) => handleSaveContent(block, content)}
                 onDelete={() => setDeletingBlock(block)}
