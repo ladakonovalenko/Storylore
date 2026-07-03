@@ -3,7 +3,7 @@ import { NavLink, Link, useLocation } from 'react-router-dom'
 import {
   BookOpen, Users, Shield, GitBranch, Map, Clock, BookText,
   Bell, ListTree, Sparkles, Layers, FileText,
-  Settings, ChevronDown, ChevronRight, Folder, File, X,
+  Settings, ChevronDown, ChevronRight, Folder, File, X, HelpCircle,
 } from 'lucide-react'
 import InkStroke from './InkStroke'
 import NavSettingsModal from './NavSettingsModal'
@@ -26,6 +26,7 @@ const BASE_NAV_ITEMS = [
   { key: 'atmosphere',    to: '/atmosphere',    label: 'Атмосфера',     icon: Sparkles },
   { key: 'reminders',     to: '/reminders',     label: 'Не забути',     icon: Bell },
   { key: 'templates',     to: '/templates',     label: 'Шаблони',       icon: FileText },
+  { key: 'help',          to: '/help',          label: 'Допомога',      icon: HelpCircle },
 ]
 
 function NavItemLink({ to, label, icon: Icon }) {

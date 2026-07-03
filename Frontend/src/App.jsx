@@ -13,6 +13,7 @@ import ResetPasswordPage  from './pages/ResetPasswordPage'
 import ProfilePage     from './pages/ProfilePage'
 import ProjectsPage    from './pages/ProjectsPage'
 import TemplatesPage   from './pages/TemplatesPage'
+import HelpPage        from './pages/HelpPage'
 import CharactersPage  from './pages/CharactersPage'
 import FactionsPage    from './pages/FactionsPage'
 import RelationshipsPage from './pages/RelationshipsPage'
@@ -56,6 +57,7 @@ export default function App() {
                 <Route path="/profile"       element={<ProfilePage />} />
                 <Route path="/projects"      element={<ProjectsPage />} />
                 <Route path="/templates"     element={<TemplatesPage />} />
+                <Route path="/help"          element={<HelpPage />} />
                 <Route path="/characters"    element={<CharactersPage />} />
                 <Route path="/factions"      element={<FactionsPage />} />
                 <Route path="/relationships" element={<RelationshipsPage />} />
