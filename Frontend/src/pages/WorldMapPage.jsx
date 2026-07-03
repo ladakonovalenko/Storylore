@@ -307,7 +307,10 @@ export default function WorldMapPage() {
       setRelationships(rels)
       setDimensions(dims)
     } catch (err) {
-      setError('Не вдалося завантажити мапу. Перевірте, чи запущено бекенд на http://127.0.0.1:8001')
+      // ВИПРАВЛЕНО: раніше тут був захардкоджений текст про локальний бекенд
+      // (127.0.0.1:8001), що лишився з розробки — він ховав справжню причину
+      // помилки (наприклад, 401 Not authenticated) під оманливим повідомленням
+      setError(err.message || 'Не вдалося завантажити мапу')
     } finally {
       setIsLoading(false)
     }
