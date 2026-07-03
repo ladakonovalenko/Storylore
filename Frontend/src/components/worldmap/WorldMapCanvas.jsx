@@ -1,7 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 
-// Кольори за типом локації
 export const LOCATION_TYPE_COLORS = {
   'Країна':     '#378ADD',
   'Острів':     '#1D9E75',
@@ -10,7 +9,6 @@ export const LOCATION_TYPE_COLORS = {
   'Інше':       '#888780',
 }
 
-// Кольори за типом зв'язку між локаціями
 export const LOCATION_REL_TYPE_COLORS = {
   'Союз':        '#1D9E75',
   'Війна':       '#E24B4A',
@@ -22,8 +20,8 @@ export const LOCATION_REL_TYPE_COLORS = {
 }
 
 const DEFAULT_COLOR = '#888780'
-const CLICK_THRESHOLD = 5 // px — менше цього вважаємо кліком, а не перетягуванням
-const NODE_R = 26          // радіус вузла (для відступу лінії зв'язку)
+const CLICK_THRESHOLD = 5
+const NODE_R = 26
 
 function strengthToWidth(s) {
   const abs = Math.abs(s ?? 0)
@@ -47,8 +45,12 @@ export default function WorldMapCanvas({
 
   const locMap = Object.fromEntries(locations.map((l) => [l.id, l]))
 
-  const onNodeMouseDown = useCallback((e, loc) => {
+  // ВИПРАВЛЕНО: Pointer Events замість Mouse Events — один обробник працює
+  // однаково для миші, пальця на тачскріні та стилуса. Раніше перетягування
+  // локацій і панорамування карти взагалі не працювало на телефонах/планшетах.
+  const onNodePointerDown = useCallback((e, loc) => {
     e.stopPropagation()
+    e.target.setPointerCapture?.(e.pointerId)
     setDragging({
       type: 'node', id: loc.id,
       startX: e.clientX, startY: e.clientY,
@@ -57,13 +59,14 @@ export default function WorldMapCanvas({
     })
   }, [])
 
-  const onSvgMouseDown = useCallback((e) => {
+  const onSvgPointerDown = useCallback((e) => {
     if (e.target === svgRef.current || e.target.tagName === 'svg') {
+      svgRef.current?.setPointerCapture?.(e.pointerId)
       setDragging({ type: 'pan', startX: e.clientX, startY: e.clientY, origX: pan.x, origY: pan.y })
     }
   }, [pan])
 
-  const onMouseMove = useCallback((e) => {
+  const onPointerMove = useCallback((e) => {
     if (!dragging) return
     if (dragging.type === 'node') {
       const dx = (e.clientX - dragging.startX) / zoom
@@ -80,7 +83,7 @@ export default function WorldMapCanvas({
     }
   }, [dragging, zoom, onNodeDragEnd])
 
-  const onMouseUp = useCallback(() => {
+  const onPointerUp = useCallback(() => {
     if (dragging?.type === 'node') {
       const loc = locations.find((l) => l.id === dragging.id)
       if (dragging.moved && loc) {
@@ -119,9 +122,9 @@ export default function WorldMapCanvas({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-parchment-dim/60">
-          Клік — деталі · перетягування — перемістити · прокручування — масштаб
+          Клік/дотик — деталі · перетягування — перемістити · колесо/кнопки — масштаб
         </p>
         <div className="flex items-center gap-1">
           <button onClick={() => setZoom((z) => Math.min(3, z + 0.15))}
@@ -146,11 +149,15 @@ export default function WorldMapCanvas({
         <svg
           ref={svgRef}
           width="100%" height="100%"
-          style={{ cursor: dragging?.type === 'pan' ? 'grabbing' : 'grab', userSelect: 'none' }}
-          onMouseDown={onSvgMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
+          // ВИПРАВЛЕНО: touchAction: 'none' — забороняє браузеру перехоплювати
+          // скрол/масштаб сторінки над полотном, інакше на телефоні звичайний
+          // скрол "з'їдав" би спробу перетягнути локацію чи саму карту
+          style={{ cursor: dragging?.type === 'pan' ? 'grabbing' : 'grab', userSelect: 'none', touchAction: 'none' }}
+          onPointerDown={onSvgPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           <defs>
             <marker id="worldmap-arrow" viewBox="0 0 10 10" refX="8" refY="5"
@@ -186,8 +193,8 @@ export default function WorldMapCanvas({
 
               return (
                 <g key={rel.id}
-                   onMouseEnter={() => setHoveredEdge(rel.id)}
-                   onMouseLeave={() => setHoveredEdge(null)}
+                   onPointerEnter={() => setHoveredEdge(rel.id)}
+                   onPointerLeave={() => setHoveredEdge(null)}
                    onClick={(e) => { e.stopPropagation(); onEdgeClick?.(rel) }}
                    style={{ cursor: 'pointer' }}>
                   <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={20} />
@@ -200,8 +207,10 @@ export default function WorldMapCanvas({
                   />
                   {isHov && (
                     <g>
+                      {/* ВИПРАВЛЕНО: фон тултипа тепер темою (--ink-800) замість
+                          захардкодженого #1a1a2e, який у світлій темі виглядав чужорідно */}
                       <rect x={mid.x - 55} y={mid.y - 11} width={110} height={22} rx={4}
-                        fill="#1a1a2e" stroke={color} strokeWidth={0.5} strokeOpacity={0.8} />
+                        fill="var(--ink-800)" stroke={color} strokeWidth={0.5} strokeOpacity={0.8} />
                       <text x={mid.x} y={mid.y + 1}
                         textAnchor="middle" dominantBaseline="central"
                         fontSize={11} fill={color} fontFamily="sans-serif">
@@ -221,11 +230,16 @@ export default function WorldMapCanvas({
               return (
                 <g key={loc.id}
                    style={{ cursor: dragging?.id === loc.id ? 'grabbing' : 'grab' }}
-                   onMouseDown={(e) => onNodeMouseDown(e, loc)}>
-                  <circle cx={loc.x} cy={loc.y} r={28} fill="#0a0a14" opacity={0.4} />
+                   onPointerDown={(e) => onNodePointerDown(e, loc)}>
+                  {/* НОВЕ: невидиме розширене коло-"мішень" — на тачскріні палець
+                      неточний, тож ціль для дотику робимо ширшою за видимий вузол */}
+                  <circle cx={loc.x} cy={loc.y} r={34} fill="transparent" />
+                  <circle cx={loc.x} cy={loc.y} r={28} fill="var(--ink-900)" opacity={0.4} />
+                  {/* ВИПРАВЛЕНО: кольори вузла тепер CSS-змінні теми замість
+                      захардкоджених темних hex-кольорів (не адаптувались до світлої теми) */}
                   <circle cx={loc.x} cy={loc.y} r={NODE_R}
-                    fill="#1e1e3a"
-                    stroke={isLinkSource ? '#EF9F27' : isSelected ? color : '#5a5a8a'}
+                    fill="var(--ink-700)"
+                    stroke={isLinkSource ? '#EF9F27' : isSelected ? color : 'var(--ink-300)'}
                     strokeWidth={isLinkSource ? 3 : isSelected ? 2.5 : 1}
                     strokeDasharray={isLinkSource ? '4 3' : 'none'}
                   />
@@ -233,13 +247,13 @@ export default function WorldMapCanvas({
                   <text x={loc.x} y={loc.y + 42}
                     textAnchor="middle" dominantBaseline="central"
                     fontSize={12} fontWeight={500}
-                    fill="#c8c6d0" fontFamily="sans-serif">
+                    fill="var(--parchment)" fontFamily="sans-serif">
                     {loc.name.length > 16 ? loc.name.slice(0, 15) + '…' : loc.name}
                   </text>
                   {loc.type && (
                     <text x={loc.x} y={loc.y + 56}
                       textAnchor="middle" dominantBaseline="central"
-                      fontSize={10} fill="#6a6880" fontFamily="sans-serif">
+                      fontSize={10} fill="var(--parchment-dim)" fontFamily="sans-serif">
                       {loc.type}
                     </text>
                   )}

@@ -481,7 +481,7 @@ export default function WorldMapPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-3xl font-medium text-parchment">Мапа світу</h2>
           <InkStroke className="mt-1" width={90} />
@@ -490,8 +490,9 @@ export default function WorldMapPage() {
             (союзи, кордони, торгові шляхи), організовуйте за паралельними вимірами.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* НОВЕ */}
+        {/* ВИПРАВЛЕНО: flex-wrap — кнопки переносяться на новий рядок замість
+            виходу за межі екрана на вузьких пристроях */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsDimensionManagerOpen(true)}
             disabled={!activeProjectId}

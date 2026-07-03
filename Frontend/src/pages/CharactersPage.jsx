@@ -154,13 +154,19 @@ export default function CharactersPage() {
 
   // ── Рендер ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full gap-6">
+    // ВИПРАВЛЕНО: flex-col на мобільних (список + деталі не влізуть поруч),
+    // flex-row лише від lg: — на десктопі поведінка ідентична попередній
+    <div className="flex h-full flex-col gap-6 lg:flex-row">
 
       {/* ── Ліва панель (список) ── */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* ВИПРАВЛЕНО: ховається на мобільних, коли відкрита деталь персонажа —
+          немає сенсу тримати список і деталі на екрані шириною з телефон */}
+      <div className={`flex min-w-0 flex-1 flex-col ${selectedChar ? 'hidden lg:flex' : ''}`}>
 
         {/* Заголовок */}
-        <div className="mb-6 flex items-center justify-between">
+        {/* ВИПРАВЛЕНО: flex-col на мобільних — кнопки більше не вилазять за межі
+            екрана, а переносяться під заголовок */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-display text-3xl font-medium text-parchment">Персонажі</h2>
             <InkStroke className="mt-1" width={100} />
@@ -169,7 +175,7 @@ export default function CharactersPage() {
               Використовуйте шаблони, щоб швидко заповнити анкету за готовою структурою.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <IdeaGenerator characters={characters} />
             <button
               onClick={() => setIsCreateOpen(true)}
@@ -336,16 +342,26 @@ export default function CharactersPage() {
       </div>
 
       {/* ── Права панель (деталі) ── */}
+      {/* ВИПРАВЛЕНО: на мобільних — повноекранна висувна панель поверх усього
+          з затемненням фону (той самий патерн, що й у Sidebar/Бібліотеці),
+          на десктопі (lg:) — звична вузька панель поруч зі списком */}
       {selectedChar && (
-        <aside className="w-96 shrink-0 overflow-y-auto rounded-lg border border-ink-500 bg-ink-800 px-6 py-5">
-          <CharacterDetail
-            character={selectedChar}
-            templateDetail={templateCache[selectedChar.template_key] ?? null}
-            onClose={() => setSelectedChar(null)}
-            onUpdated={handleUpdated}
-            onDeleted={handleDeleted}
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+            onClick={() => setSelectedChar(null)}
+            aria-hidden="true"
           />
-        </aside>
+          <aside className="fixed inset-y-0 right-0 z-40 w-full overflow-y-auto border-ink-500 bg-ink-800 px-5 py-5 sm:max-w-sm sm:border-l lg:static lg:z-auto lg:w-96 lg:max-w-none lg:shrink-0 lg:rounded-lg lg:border lg:px-6">
+            <CharacterDetail
+              character={selectedChar}
+              templateDetail={templateCache[selectedChar.template_key] ?? null}
+              onClose={() => setSelectedChar(null)}
+              onUpdated={handleUpdated}
+              onDeleted={handleDeleted}
+            />
+          </aside>
+        </>
       )}
 
       {/* Модалка створення */}

@@ -123,6 +123,15 @@ html.light .rounded-lg.border-ink-500:not(.modal-panel):hover {
   [class*="group-hover"] {
     opacity: 1 !important;
   }
+
+  /* НОВЕ: іконки-кнопки (олівець/кошик тощо) по всьому сайту зазвичай мають
+     padding p-1 чи p-1.5 — цього достатньо для точного курсора миші, але замало
+     для пальця на тачскріні: кнопки стоять надто щільно й легко натиснути не ту.
+     [class~="..."] шукає ТОЧНИЙ клас-токен (не підрядок), тож не зачіпає p-10/p-12 тощо. */
+  button[class~="p-1"],
+  button[class~="p-1.5"] {
+    padding: 0.5rem !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

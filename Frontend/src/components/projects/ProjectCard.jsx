@@ -1,9 +1,14 @@
-import { BookOpen, Check, Edit3, Trash2, Download, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { BookOpen, Check, Edit3, Trash2, Download, Loader2, ImageOff } from 'lucide-react'
 import InkStroke from '../layout/InkStroke'
 
 export default function ProjectCard({ project, isActive, onSelect, onEdit, onDelete, onExport, isExporting }) {
   const title = project.title || project.name || 'Без назви'
   const description = project.description || project.summary
+  // НОВЕ: якщо обкладинка не завантажилась (биту посилання, збій хостингу,
+  // мережева помилка на конкретному пристрої) — показуємо плейсхолдер
+  // замість "битої" іконки браузера
+  const [coverBroken, setCoverBroken] = useState(false)
 
   return (
     <div
@@ -13,10 +18,18 @@ export default function ProjectCard({ project, isActive, onSelect, onEdit, onDel
           : 'border-ink-500 bg-ink-800 hover:border-ink-300'
       }`}
     >
-      {/* НОВЕ: обкладинка проєкту, якщо задана */}
-      {project.cover_url && (
-        <img src={project.cover_url} alt="" className="h-32 w-full object-cover" loading="lazy" />
-      )}
+      {/* НОВЕ: обкладинка проєкту, якщо задана, з обробкою помилки завантаження */}
+      {project.cover_url && !coverBroken ? (
+        <img
+          src={project.cover_url} alt="" className="h-32 w-full object-cover" loading="lazy"
+          onError={() => setCoverBroken(true)}
+        />
+      ) : project.cover_url && coverBroken ? (
+        <div className="flex h-32 w-full flex-col items-center justify-center gap-1 bg-ink-700 text-center">
+          <ImageOff size={20} className="text-parchment-dim" />
+          <p className="text-xs text-parchment-dim">Обкладинка не завантажилась</p>
+        </div>
+      ) : null}
 
       <div className="flex flex-col px-5 py-4">
         <div className="flex items-start justify-between gap-3">
