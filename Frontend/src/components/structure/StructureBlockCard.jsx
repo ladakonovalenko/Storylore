@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react'
-import { GripVertical, Trash2, Check, X, Pencil, Bold, Italic, List } from 'lucide-react'
+import { GripVertical, Trash2, Check, X, Pencil, Bold, Italic, List, ArrowUp, ArrowDown } from 'lucide-react'
 import FormattedText from '../common/FormattedText'
 
 export default function StructureBlockCard({
-  block, isDragging, isDragOver,
+  block, isDragging, isDragOver, isFirst, isLast,
   onDragStart, onDragOver, onDragEnd, onDrop,
   onSaveTitle, onSaveContent, onDelete,
+  onMoveUp, onMoveDown, // НОВЕ: тач-дружня альтернатива drag-and-drop
 }) {
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(block.title)
@@ -27,8 +28,6 @@ export default function StructureBlockCard({
     setEditingContent(false)
   }
 
-  // НОВЕ: міні-панель форматування — обгортає виділений текст у **жирний**/*курсив*,
-  // або вставляє новий рядок списку "- " у позиції курсора
   const wrapSelection = (marker) => {
     const ta = textareaRef.current
     if (!ta) return
@@ -69,14 +68,39 @@ export default function StructureBlockCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      <div
-        draggable
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        className="flex shrink-0 cursor-grab items-start pt-1 text-parchment-dim/50 active:cursor-grabbing"
-        title="Перетягніть, щоб змінити порядок"
-      >
-        <GripVertical size={16} />
+      {/* Ручка перетягування — для миші (десктоп, ховається на мобільних).
+          НОВЕ: стрілки вгору/вниз поруч — для тачскрінів, де нативний
+          HTML5 drag-and-drop практично не працює */}
+      <div className="flex shrink-0 flex-col items-center gap-1 pt-1">
+        <div
+          draggable
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          className="hidden cursor-grab text-parchment-dim/50 active:cursor-grabbing md:block"
+          title="Перетягніть, щоб змінити порядок"
+        >
+          <GripVertical size={16} />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <button
+            onClick={onMoveUp}
+            disabled={isFirst}
+            className="rounded p-1 text-parchment-dim hover:bg-ink-700 hover:text-amber-soft disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-parchment-dim"
+            aria-label="Перемістити вгору"
+            title="Перемістити вгору"
+          >
+            <ArrowUp size={13} />
+          </button>
+          <button
+            onClick={onMoveDown}
+            disabled={isLast}
+            className="rounded p-1 text-parchment-dim hover:bg-ink-700 hover:text-amber-soft disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-parchment-dim"
+            aria-label="Перемістити вниз"
+            title="Перемістити вниз"
+          >
+            <ArrowDown size={13} />
+          </button>
+        </div>
       </div>
 
       <div className="min-w-0 flex-1">
@@ -115,7 +139,6 @@ export default function StructureBlockCard({
         {/* Текст блоку */}
         {editingContent ? (
           <div className="mt-2 flex flex-col gap-2">
-            {/* НОВЕ: міні-панель форматування */}
             <div className="flex items-center gap-1">
               <button type="button" onClick={() => wrapSelection('**')}
                 className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-amber-soft" title="Жирний (**текст**)">
@@ -129,7 +152,7 @@ export default function StructureBlockCard({
                 className="rounded p-1.5 text-parchment-dim hover:bg-ink-700 hover:text-amber-soft" title="Пункт списку">
                 <List size={13} />
               </button>
-              <span className="ml-2 text-[10px] text-parchment-dim/50">
+              <span className="ml-2 hidden text-[10px] text-parchment-dim/50 sm:inline">
                 Підтримує [[Назва]] для посилань на персонажів, локації тощо
               </span>
             </div>
@@ -152,8 +175,6 @@ export default function StructureBlockCard({
           </div>
         ) : (
           <div className="group/content mt-2 flex items-start gap-1.5">
-            {/* ВИПРАВЛЕНО: вміст тепер рендериться через FormattedText —
-                підтримує жирний, курсив, списки та [[посилання]] */}
             <div className="min-w-0 flex-1 select-text text-sm text-parchment-dim [&_p]:my-0.5">
               {block.content
                 ? <FormattedText text={block.content} />

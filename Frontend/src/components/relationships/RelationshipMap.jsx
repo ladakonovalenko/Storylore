@@ -14,11 +14,8 @@ const TYPE_COLORS = {
   'Суперник':     '#EF9F27',
 }
 
-// ВИПРАВЛЕНО: нейтральний колір (коли тип зв'язку невідомий чи strength === 0)
-// тепер CSS-змінна теми замість захардкодженого сірого — контрастує коректно
-// і в темній, і в світлій темі, а не лише в темній, як було раніше.
 const DEFAULT_COLOR = 'var(--parchment-dim)'
-const CLICK_THRESHOLD = 5 // px — менше цього вважаємо кліком, а не перетягуванням
+const CLICK_THRESHOLD = 5
 
 function layoutNodes(characters) {
   const cx = 400
@@ -38,7 +35,7 @@ function layoutNodes(characters) {
 
 function strengthToWidth(s) {
   const abs = Math.abs(s ?? 0)
-  return 1.5 + (abs / 100) * 5 // ВИПРАВЛЕНО: мінімум 1.5 замість 1
+  return 1.5 + (abs / 100) * 5
 }
 function strengthToColor(s, type) {
   if (s === 0) return DEFAULT_COLOR
@@ -46,8 +43,6 @@ function strengthToColor(s, type) {
 }
 function strengthToOpacity(s) {
   const abs = Math.abs(s ?? 0)
-  // ВИПРАВЛЕНО: мінімальна прозорість піднята з 0.3 до 0.55 — навіть найслабші
-  // зв'язки лишаються чіткими на світлому фоні
   return 0.55 + (abs / 100) * 0.45
 }
 
@@ -67,18 +62,23 @@ export default function RelationshipMap({ relationships, characters }) {
 
   const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]))
 
-  const onNodeMouseDown = useCallback((e, id) => {
+  // ВИПРАВЛЕНО: Pointer Events замість Mouse Events — один обробник працює
+  // однаково для миші, пальця на тачскріні та стилуса. Критично для мобільних —
+  // onMouseDown/Move/Up узагалі не спрацьовують на дотик.
+  const onNodePointerDown = useCallback((e, id) => {
     e.stopPropagation()
+    e.target.setPointerCapture?.(e.pointerId)
     setDragging({ type: 'node', id, startX: e.clientX, startY: e.clientY, moved: false })
   }, [])
 
-  const onSvgMouseDown = useCallback((e) => {
+  const onSvgPointerDown = useCallback((e) => {
     if (e.target === svgRef.current || e.target.tagName === 'svg') {
+      svgRef.current?.setPointerCapture?.(e.pointerId)
       setDragging({ type: 'pan', startX: e.clientX, startY: e.clientY, origX: pan.x, origY: pan.y, moved: false })
     }
   }, [pan])
 
-  const onMouseMove = useCallback((e) => {
+  const onPointerMove = useCallback((e) => {
     if (!dragging) return
     const movedNow = Math.abs(e.clientX - dragging.startX) > CLICK_THRESHOLD ||
                       Math.abs(e.clientY - dragging.startY) > CLICK_THRESHOLD
@@ -99,7 +99,7 @@ export default function RelationshipMap({ relationships, characters }) {
     }
   }, [dragging, zoom])
 
-  const onMouseUp = useCallback(() => {
+  const onPointerUp = useCallback(() => {
     if (dragging?.type === 'node' && !dragging.moved) {
       setFocusedId((prev) => (prev === dragging.id ? null : dragging.id))
     } else if (dragging?.type === 'pan' && !dragging.moved) {
@@ -153,7 +153,7 @@ export default function RelationshipMap({ relationships, characters }) {
   return (
     <div className="flex flex-col gap-3">
       {/* Панель керування */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         {focusedNode ? (
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-amber-ink/15 px-3 py-1 text-xs font-medium text-amber-soft">
@@ -168,7 +168,7 @@ export default function RelationshipMap({ relationships, characters }) {
           </div>
         ) : (
           <p className="text-xs text-parchment-dim/60">
-            Клік на персонажі — лише його зв'язки · перетягування — перемістити · прокручування — масштаб
+            Клік/дотик на персонажі — лише його зв'язки · перетягування — перемістити · колесо/кнопки — масштаб
           </p>
         )}
         <div className="flex items-center gap-1">
@@ -196,11 +196,12 @@ export default function RelationshipMap({ relationships, characters }) {
         <svg
           ref={svgRef}
           width="100%" height="100%"
-          style={{ cursor: dragging?.type === 'pan' ? 'grabbing' : 'grab', userSelect: 'none' }}
-          onMouseDown={onSvgMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
+          style={{ cursor: dragging?.type === 'pan' ? 'grabbing' : 'grab', userSelect: 'none', touchAction: 'none' }}
+          onPointerDown={onSvgPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           <defs>
             <marker id="map-arrow" viewBox="0 0 10 10" refX="8" refY="5"
@@ -237,8 +238,8 @@ export default function RelationshipMap({ relationships, characters }) {
 
               return (
                 <g key={rel.id}
-                   onMouseEnter={() => setHovered(rel.id)}
-                   onMouseLeave={() => setHovered(null)}
+                   onPointerEnter={() => setHovered(rel.id)}
+                   onPointerLeave={() => setHovered(null)}
                    style={{ cursor: 'default' }}>
                   <line x1={x1} y1={y1} x2={x2} y2={y2}
                     stroke="transparent" strokeWidth={20} />
@@ -251,8 +252,6 @@ export default function RelationshipMap({ relationships, characters }) {
                   />
                   {isHov && (
                     <g>
-                      {/* ВИПРАВЛЕНО: фон тултипа тепер темою (--ink-800) замість
-                          захардкодженого #1a1a2e, який у світлій темі виглядав чужорідно */}
                       <rect
                         x={mid.x - 50} y={mid.y - 11}
                         width={100} height={22} rx={4}
@@ -275,10 +274,10 @@ export default function RelationshipMap({ relationships, characters }) {
               return (
                 <g key={node.id}
                    style={{ cursor: dragging?.id === node.id ? 'grabbing' : 'grab' }}
-                   onMouseDown={(e) => onNodeMouseDown(e, node.id)}>
-                  {/* ВИПРАВЛЕНО: усі кольори вузлів нижче тепер CSS-змінні теми
-                      замість захардкоджених темних hex-кольорів — раніше вузли
-                      лишались темно-фіолетовими навіть у світлій темі */}
+                   onPointerDown={(e) => onNodePointerDown(e, node.id)}>
+                  {/* НОВЕ: невидиме розширене коло-"мішень" — на тачскріні палець
+                      неточний, тож ціль для дотику робимо ширшою за видимий вузол */}
+                  <circle cx={node.x} cy={node.y} r={30} fill="transparent" />
                   <circle cx={node.x} cy={node.y} r={24}
                     fill="var(--ink-900)" opacity={0.5} />
                   <circle cx={node.x} cy={node.y} r={22}

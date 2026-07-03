@@ -149,7 +149,7 @@ export default function EventForm({
       </label>
 
       {/* Час */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm text-parchment-dim">
           Рік (число)
           <input type="number" min="0" value={year} onChange={(e) => setYear(e.target.value)}
@@ -168,7 +168,7 @@ export default function EventForm({
       </div>
 
       {/* Ера та Арка */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm text-parchment-dim">
           Ера (необов'язково)
           <select value={eraId} onChange={(e) => setEraId(e.target.value)} className={inputCls()}>

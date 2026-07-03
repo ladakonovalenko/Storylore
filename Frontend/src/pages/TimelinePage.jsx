@@ -245,12 +245,12 @@ export default function TimelinePage() {
         return keys
       })()
 
-  const inputCls = 'rounded-md border border-ink-500 bg-ink-800 px-3 py-1.5 text-sm text-parchment focus:border-amber-ink focus:outline-none'
+  const inputCls = 'flex-1 min-w-[140px] rounded-md border border-ink-500 bg-ink-800 px-3 py-1.5 text-sm text-parchment focus:border-amber-ink focus:outline-none'
 
   return (
     <div>
       {/* Заголовок */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-3xl font-medium text-parchment">Таймлайн</h2>
           <InkStroke className="mt-1" width={90} />
@@ -264,7 +264,9 @@ export default function TimelinePage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        {/* ВИПРАВЛЕНО: flex-wrap — 5 кнопок переносяться на новий рядок замість
+            виходу за межі екрана на вузьких пристроях */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsEraManagerOpen(true)}
             disabled={!activeProjectId}

@@ -19,7 +19,6 @@ export default function StructurePage() {
   const [isAdding, setIsAdding] = useState(false)
   const [deletingBlock, setDeletingBlock] = useState(null)
 
-  // Стан перетягування
   const [dragIndex, setDragIndex] = useState(null)
   const [dragOverIndex, setDragOverIndex] = useState(null)
 
@@ -84,7 +83,7 @@ export default function StructurePage() {
     }
   }
 
-  // ── Перетягування (HTML5 Drag-and-Drop, без зовнішніх бібліотек) ──────────
+  // ── Перетягування мишею (десктоп) ──────────────────────────────────────────
   const handleDragStart = (index) => () => setDragIndex(index)
 
   const handleDragOver = (index) => (e) => {
@@ -102,15 +101,29 @@ export default function StructurePage() {
     setDragIndex(index)
   }
 
-  const handleDragEnd = async () => {
-    setDragIndex(null)
-    setDragOverIndex(null)
-    // Зберігаємо фінальний порядок на бекенді одним запитом
+  const persistOrder = async (nextBlocks) => {
     try {
-      await reorderStructureBlocks(activeProjectId, blocks.map((b) => b.id))
+      await reorderStructureBlocks(activeProjectId, nextBlocks.map((b) => b.id))
     } catch (err) {
       toast.error('Не вдалося зберегти новий порядок')
     }
+  }
+
+  const handleDragEnd = async () => {
+    setDragIndex(null)
+    setDragOverIndex(null)
+    await persistOrder(blocks)
+  }
+
+  // НОВЕ: переміщення кнопками вгору/вниз — тач-дружня альтернатива для
+  // пристроїв, де нативний HTML5 drag-and-drop не працює (телефони, планшети)
+  const handleMove = (index, direction) => async () => {
+    const newIndex = index + direction
+    if (newIndex < 0 || newIndex >= blocks.length) return
+    const next = [...blocks]
+    ;[next[index], next[newIndex]] = [next[newIndex], next[index]]
+    setBlocks(next)
+    await persistOrder(next)
   }
 
   const projectTitle = activeProject?.title || activeProject?.name || null
@@ -138,7 +151,8 @@ export default function StructurePage() {
       </div>
 
       <p className="mt-2 text-sm text-parchment-dim/70">
-        Створюйте власні розділи у будь-якій структурі — перетягуйте їх мишею, щоб змінити порядок.
+        Створюйте власні розділи у будь-якій структурі — на комп'ютері перетягуйте мишею,
+        на телефоні/планшеті користуйтесь стрілочками вгору/вниз.
       </p>
 
       <div className="mt-6">
@@ -174,10 +188,14 @@ export default function StructurePage() {
                 block={block}
                 isDragging={dragIndex === index}
                 isDragOver={dragOverIndex === index}
+                isFirst={index === 0}
+                isLast={index === blocks.length - 1}
                 onDragStart={handleDragStart(index)}
                 onDragOver={handleDragOver(index)}
                 onDragEnd={handleDragEnd}
                 onDrop={(e) => e.preventDefault()}
+                onMoveUp={handleMove(index, -1)}
+                onMoveDown={handleMove(index, 1)}
                 onSaveTitle={(title) => handleSaveTitle(block, title)}
                 onSaveContent={(content) => handleSaveContent(block, content)}
                 onDelete={() => setDeletingBlock(block)}

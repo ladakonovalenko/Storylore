@@ -150,10 +150,14 @@ export default function WikiPage() {
   }
 
   return (
-    <div className="flex h-full gap-6">
-      <div className="flex min-w-0 flex-1 flex-col">
+    // ВИПРАВЛЕНО: flex-col на мобільних (список і деталі не влізуть поруч),
+    // flex-row лише від lg: — на десктопі поведінка ідентична попередній
+    <div className="flex h-full flex-col gap-6 lg:flex-row">
+      {/* ВИПРАВЛЕНО: список ховається на мобільних, коли відкрита деталь статті —
+          немає сенсу тримати обидва на екрані шириною з телефон */}
+      <div className={`flex min-w-0 flex-1 flex-col ${selectedArticle ? 'hidden lg:flex' : ''}`}>
         {/* Заголовок */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-display text-3xl font-medium text-parchment">Бібліотека</h2>
             <InkStroke className="mt-1" width={90} />
@@ -174,7 +178,7 @@ export default function WikiPage() {
                 onClick={handleExportAll}
                 className="flex items-center gap-2 rounded-md border border-ink-500 px-4 py-2 text-sm text-parchment-dim hover:border-amber-ink hover:text-amber-soft"
               >
-                <Download size={16} /> Завантажити все
+                <Download size={16} /> <span className="hidden sm:inline">Завантажити все</span>
               </button>
             )}
             <button
@@ -269,17 +273,26 @@ export default function WikiPage() {
         )}
       </div>
 
-      {/* Бічна панель деталей */}
+      {/* ВИПРАВЛЕНО: бічна панель деталей — на мобільних це повноекранна висувна
+          панель поверх усього з затемненням фону (той самий патерн, що й у Sidebar),
+          на десктопі (lg:) — звична вузька панель поруч зі списком, як і раніше */}
       {selectedArticle && (
-        <aside className="w-96 shrink-0 overflow-y-auto rounded-lg border border-ink-500 bg-ink-800 px-6 py-5">
-          <WikiArticleDetail
-            article={selectedArticle}
-            characters={characters} factions={factions} locations={locations}
-            onClose={() => setSelectedArticle(null)}
-            onEdit={(a) => setEditingArticle(a)}
-            onDelete={(a) => setDeletingArticle(a)}
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+            onClick={() => setSelectedArticle(null)}
+            aria-hidden="true"
           />
-        </aside>
+          <aside className="fixed inset-y-0 right-0 z-40 w-full overflow-y-auto border-ink-500 bg-ink-800 px-5 py-5 sm:max-w-sm sm:border-l lg:static lg:z-auto lg:w-96 lg:max-w-none lg:shrink-0 lg:rounded-lg lg:border lg:px-6">
+            <WikiArticleDetail
+              article={selectedArticle}
+              characters={characters} factions={factions} locations={locations}
+              onClose={() => setSelectedArticle(null)}
+              onEdit={(a) => setEditingArticle(a)}
+              onDelete={(a) => setDeletingArticle(a)}
+            />
+          </aside>
+        </>
       )}
 
       {/* Модалка створення */}
