@@ -251,11 +251,13 @@ class RelationshipCreate(BaseModel):
     relationship_type: str
     strength:          int            = 0
     description:       Optional[str] = ""
+    is_mutual: Optional[bool] = False
 
 class RelationshipUpdate(BaseModel):
     relationship_type: Optional[str] = None
     strength:          Optional[int] = None
     description:       Optional[str] = None
+    is_mutual: Optional[bool] = None
 
 class RelationshipResponse(BaseModel):
     id:                int
@@ -266,6 +268,7 @@ class RelationshipResponse(BaseModel):
     description:       Optional[str]          = ""
     character:         Optional[CharacterShort] = None
     target:            Optional[CharacterShort] = None
+    is_mutual: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 

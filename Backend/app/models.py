@@ -187,7 +187,7 @@ class CharacterRelationship(Base):
     relationship_type = Column(String,  nullable=False)
     strength          = Column(Integer, default=0)
     description       = Column(Text,    default="")
-
+    is_mutual = Column(Boolean, default=False)
     character = relationship("Character", foreign_keys=[character_id], back_populates="outgoing_relationships")
     target    = relationship("Character", foreign_keys=[target_id],    back_populates="incoming_relationships")
 

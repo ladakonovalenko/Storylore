@@ -13,6 +13,7 @@ COLUMNS_TO_ENSURE = [
     ("projects", "cover_url", "VARCHAR"),
     ("characters", "image_url", "VARCHAR"),  # НОВЕ
     ("factions", "image_url", "VARCHAR"),    # НОВЕ
+    ("character_relationships", "is_mutual", "BOOLEAN DEFAULT FALSE"),  # НОВЕ
 ]
 
 
