@@ -248,6 +248,10 @@ export default function RelationshipMap({ relationships, characters }) {
                     strokeWidth={isHov ? width + 2 : width}
                     strokeOpacity={isHov ? 1 : opacity}
                     strokeDasharray={dash}
+                    // НОВЕ: для взаємних зв'язків додаємо стрілку і на початку лінії —
+                    // marker вже має orient="auto-start-reverse", тож сам розвертається
+                    // правильно з обох боків без потреби в окремому визначенні
+                    markerStart={rel.is_mutual ? "url(#map-arrow)" : undefined}
                     markerEnd="url(#map-arrow)"
                   />
                   {isHov && (

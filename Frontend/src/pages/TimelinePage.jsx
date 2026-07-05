@@ -297,11 +297,11 @@ export default function TimelinePage() {
           </button>
           <button
             onClick={() => {
-              if (!activeProjectId) { toast.error('Спочатку оберіть активний проєкт'); return }
               setEditingEvent(null)
               setIsModalOpen(true)
             }}
-            className="flex items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft"
+            disabled={!activeProjectId}
+            className="flex items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={16} /> Нова подія
           </button>

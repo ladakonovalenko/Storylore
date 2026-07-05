@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Loader2 } from 'lucide-react'
+import PasswordInput from '../components/common/PasswordInput'
 
 export default function LoginPage() {
   const { login, continueAsGuest } = useAuth()
@@ -50,8 +51,8 @@ export default function LoginPage() {
                 Забули пароль?
               </Link>
             </div>
-            <input
-              type="password" value={password}
+            <PasswordInput
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className={inputCls} required

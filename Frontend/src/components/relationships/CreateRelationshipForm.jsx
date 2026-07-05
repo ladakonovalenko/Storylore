@@ -14,6 +14,7 @@ export default function CreateRelationshipForm({ characters, initial, onSubmit, 
   const [targetId,    setTargetId]    = useState(initial?.target_id    ?? '')
   const [type,        setType]        = useState(initial?.relationship_type ?? '')
   const [strength,    setStrength]    = useState(initial?.strength ?? 0)
+  const [isMutual,    setIsMutual]    = useState(initial?.is_mutual ?? false)
   const [description, setDescription] = useState(initial?.description ?? '')
   const [touched,     setTouched]     = useState(false)
 
@@ -24,6 +25,7 @@ export default function CreateRelationshipForm({ characters, initial, onSubmit, 
       setTargetId(initial.target_id ?? '')
       setType(initial.relationship_type ?? '')
       setStrength(initial.strength ?? 0)
+      setIsMutual(initial.is_mutual ?? false)
       setDescription(initial.description ?? '')
     }
   }, [initial])
@@ -39,6 +41,7 @@ export default function CreateRelationshipForm({ characters, initial, onSubmit, 
       target_id:         Number(targetId),
       relationship_type: type,
       strength:          Number(strength),
+      is_mutual:         isMutual,
       description:       description.trim() || '',
     })
   }
@@ -133,6 +136,18 @@ export default function CreateRelationshipForm({ characters, initial, onSubmit, 
           <span>+100 Союзник</span>
         </div>
       </div>
+
+      {/* НОВЕ: взаємність зв'язку — якщо позначено, на карті зв'язків
+          лінія матиме стрілки з обох кінців (двосторонній зв'язок) */}
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-parchment-dim">
+        <input
+          type="checkbox"
+          checked={isMutual}
+          onChange={(e) => setIsMutual(e.target.checked)}
+          className="accent-amber-ink"
+        />
+        Взаємний зв'язок (діє в обидва боки однаково)
+      </label>
 
       {/* Опис */}
       <label className="block text-sm text-parchment-dim">

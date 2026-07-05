@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { UserCircle, LogOut, BookOpen, Edit3, Check, X, Loader2, Lock } from 'lucide-react'
+import PasswordInput from '../components/common/PasswordInput'
 import { useAuth } from '../context/AuthContext'
 import { useProject } from '../context/ProjectContext'
 import { Link } from 'react-router-dom'
@@ -112,20 +113,20 @@ function ChangePasswordBlock() {
         <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-3">
           <label className="block text-xs text-parchment-dim">
             Поточний пароль
-            <input type="password" value={oldPassword}
+            <PasswordInput value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
               className={inputCls} required />
           </label>
           <label className="block text-xs text-parchment-dim">
             Новий пароль
-            <input type="password" value={newPassword}
+            <PasswordInput value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Мінімум 8 символів"
               className={inputCls} required minLength={8} />
           </label>
           <label className="block text-xs text-parchment-dim">
             Підтвердити новий пароль
-            <input type="password" value={confirm}
+            <PasswordInput value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               className={inputCls} required />
           </label>

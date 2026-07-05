@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { Loader2, CheckCircle2 } from 'lucide-react'
+import PasswordInput from '../components/common/PasswordInput'
 import { useAuth } from '../context/AuthContext'
 
 export default function ResetPasswordPage() {
@@ -79,8 +80,8 @@ export default function ResetPasswordPage() {
             <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
               <label className="block text-sm text-parchment-dim">
                 Новий пароль
-                <input
-                  type="password" value={password}
+                <PasswordInput
+                  value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className={inputCls} required autoFocus
@@ -89,8 +90,8 @@ export default function ResetPasswordPage() {
 
               <label className="block text-sm text-parchment-dim">
                 Підтвердіть пароль
-                <input
-                  type="password" value={confirmPassword}
+                <PasswordInput
+                  value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   className={inputCls} required

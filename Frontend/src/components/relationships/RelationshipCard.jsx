@@ -1,4 +1,4 @@
-import { Edit3, Trash2, ArrowRight } from 'lucide-react'
+import { Edit3, Trash2, ArrowRight, ArrowLeftRight } from 'lucide-react'
 
 // Типи → колір бейджа
 const TYPE_COLORS = {
@@ -102,10 +102,20 @@ export default function RelationshipCard({ relationship: rel, onEdit, onDelete }
         <span className="truncate font-display text-base font-medium text-parchment">
           {charName}
         </span>
-        <ArrowRight size={14} className="shrink-0 text-parchment-dim/50" />
+        {/* ВИПРАВЛЕНО: двостороння стрілка для взаємних зв'язків */}
+        {rel.is_mutual ? (
+          <ArrowLeftRight size={14} className="shrink-0 text-amber-soft" />
+        ) : (
+          <ArrowRight size={14} className="shrink-0 text-parchment-dim/50" />
+        )}
         <span className="truncate font-display text-base font-medium text-parchment">
           {targetName}
         </span>
+        {rel.is_mutual && (
+          <span className="ml-auto shrink-0 rounded-full bg-amber-ink/15 px-2 py-0.5 text-xs text-amber-soft">
+            Взаємний
+          </span>
+        )}
       </div>
 
       {/* Ролі (якщо є) */}

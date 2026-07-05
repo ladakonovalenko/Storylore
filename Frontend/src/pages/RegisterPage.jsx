@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Loader2 } from 'lucide-react'
+import PasswordInput from '../components/common/PasswordInput'
 
 export default function RegisterPage() {
   const { register } = useAuth()
@@ -56,8 +57,8 @@ export default function RegisterPage() {
 
           <label className="block text-sm text-parchment-dim">
             Пароль
-            <input
-              type="password" value={password}
+            <PasswordInput
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Мінімум 8 символів"
               className={inputCls} required minLength={8}

@@ -130,7 +130,7 @@ export default function SearchModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-[12vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 px-4 pt-[12vh]"
       onClick={() => setIsOpen(false)}
     >
       <div
@@ -193,8 +193,10 @@ export default function SearchModal() {
           )}
         </div>
 
-        {/* Підказка внизу */}
-        <div className="flex items-center justify-end gap-1 border-t border-ink-500 px-4 py-2 text-xs text-parchment-dim/50">
+        {/* Підказка внизу — ВИПРАВЛЕНО: hidden sm:flex — на мобільних немає
+            клавіші Esc (немає фізичної клавіатури), тож підказка лише збиває
+            з пантелику; на десктопі лишається як була */}
+        <div className="hidden items-center justify-end gap-1 border-t border-ink-500 px-4 py-2 text-xs text-parchment-dim/50 sm:flex">
           <kbd className="rounded border border-ink-500 px-1.5 py-0.5">Esc</kbd>
           щоб закрити
         </div>
