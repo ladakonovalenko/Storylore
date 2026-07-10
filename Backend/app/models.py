@@ -72,6 +72,7 @@ class Faction(Base):
     alignment   = Column(String, nullable=True)
     leader      = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
+    template_id = Column(Integer, ForeignKey("faction_templates.id"), nullable=True)
     project    = relationship("Project",   back_populates="factions")
     characters = relationship("Character", back_populates="faction")
 
@@ -498,3 +499,42 @@ class PasswordResetToken(Base):
     expires_at = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class FactionTemplate(Base):
+    __tablename__ = "faction_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    template_name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+
+    fields = relationship(
+        "FactionTemplateField", back_populates="template",
+        cascade="all, delete-orphan", order_by="FactionTemplateField.order_index",
+    )
+
+
+class FactionTemplateField(Base):
+    __tablename__ = "faction_template_fields"
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_id = Column(Integer, ForeignKey("faction_templates.id", ondelete="CASCADE"), index=True)
+    # ВАЖЛИВО: на відміну від шаблонів персонажів, тут label — вільний текст,
+    # не обмежений списком існуючих колонок (бо у Faction їх майже немає)
+    label = Column(String, nullable=False)
+    field_type = Column(String, default="textarea")  # 'text' | 'textarea'
+    placeholder = Column(String, nullable=True)
+    order_index = Column(Integer, default=0)
+
+    template = relationship("FactionTemplate", back_populates="fields")
+
+
+class FactionFieldValue(Base):
+    """EAV-таблиця: фактичне значення власного поля для конкретної фракції."""
+    __tablename__ = "faction_field_values"
+
+    id = Column(Integer, primary_key=True, index=True)
+    faction_id = Column(Integer, ForeignKey("factions.id", ondelete="CASCADE"), index=True)
+    field_id = Column(Integer, ForeignKey("faction_template_fields.id", ondelete="CASCADE"), index=True)
+    value = Column(Text, nullable=True)

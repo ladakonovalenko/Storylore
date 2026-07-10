@@ -54,6 +54,30 @@ def _owned_faction(db: Session, faction_id: int, user: models.User) -> models.Fa
         raise HTTPException(status_code=404, detail="Фракцію не знайдено")
     return obj
 
+def _owned_faction_template(db: Session, template_id: int, user: models.User) -> models.FactionTemplate:
+    obj = (
+        db.query(models.FactionTemplate)
+        .join(models.Project, models.FactionTemplate.project_id == models.Project.id)
+        .filter(models.FactionTemplate.id == template_id, models.Project.owner_id == user.id)
+        .first()
+    )
+    if not obj:
+        raise HTTPException(status_code=404, detail="Шаблон не знайдено")
+    return obj
+
+
+def _owned_faction_template_field(db: Session, field_id: int, user: models.User) -> models.FactionTemplateField:
+    obj = (
+        db.query(models.FactionTemplateField)
+        .join(models.FactionTemplate, models.FactionTemplateField.template_id == models.FactionTemplate.id)
+        .join(models.Project, models.FactionTemplate.project_id == models.Project.id)
+        .filter(models.FactionTemplateField.id == field_id, models.Project.owner_id == user.id)
+        .first()
+    )
+    if not obj:
+        raise HTTPException(status_code=404, detail="Поле не знайдено")
+    return obj
+
 
 def _owned_location(db: Session, location_id: int, user: models.User) -> models.Location:
     obj = (
@@ -261,7 +285,6 @@ def _owned_custom_template_field(db: Session, field_id: int, user: models.User) 
     if not obj:
         raise HTTPException(status_code=404, detail="Поле не знайдено")
     return obj
-
 
 def _send_password_reset_email(to_email: str, reset_link: str):
     """Надсилає лист через Resend API. Використовує лише стандартну бібліотеку
@@ -1091,6 +1114,150 @@ def delete_faction(
     db.delete(db_faction)
     db.commit()
     return {"detail": "Фракцію видалено"}
+
+
+@router.post("/faction-templates", response_model=schemas.FactionTemplateResponse, tags=["FactionTemplates"])
+def create_faction_template(
+        payload: schemas.FactionTemplateCreate, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    _owned_project(db, payload.project_id, current_user)
+    db_template = models.FactionTemplate(**payload.model_dump())
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+
+@router.get("/projects/{project_id}/faction-templates", response_model=List[schemas.FactionTemplateResponse],
+            tags=["FactionTemplates"])
+def get_project_faction_templates(
+        project_id: int, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    _owned_project(db, project_id, current_user)
+    return db.query(models.FactionTemplate).filter(models.FactionTemplate.project_id == project_id).all()
+
+
+@router.put("/faction-templates/{template_id}", response_model=schemas.FactionTemplateResponse,
+            tags=["FactionTemplates"])
+def update_faction_template(
+        template_id: int, payload: schemas.FactionTemplateUpdate, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    db_template = _owned_faction_template(db, template_id, current_user)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_template, key, value)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+
+@router.delete("/faction-templates/{template_id}", tags=["FactionTemplates"])
+def delete_faction_template(
+        template_id: int, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    db_template = _owned_faction_template(db, template_id, current_user)
+    db.delete(db_template)
+    db.commit()
+    return {"detail": "Шаблон видалено"}
+
+
+@router.post("/faction-templates/{template_id}/fields", response_model=schemas.FactionTemplateFieldResponse,
+             tags=["FactionTemplates"])
+def add_faction_template_field(
+        template_id: int, payload: schemas.FactionTemplateFieldCreate, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    _owned_faction_template(db, template_id, current_user)
+    max_order = db.query(models.FactionTemplateField).filter(
+        models.FactionTemplateField.template_id == template_id
+    ).count()
+    db_field = models.FactionTemplateField(template_id=template_id, **payload.model_dump(), order_index=max_order)
+    db.add(db_field)
+    db.commit()
+    db.refresh(db_field)
+    return db_field
+
+
+@router.put("/faction-template-fields/{field_id}", response_model=schemas.FactionTemplateFieldResponse,
+            tags=["FactionTemplates"])
+def update_faction_template_field(
+        field_id: int, payload: schemas.FactionTemplateFieldUpdate, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    db_field = _owned_faction_template_field(db, field_id, current_user)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(db_field, key, value)
+    db.commit()
+    db.refresh(db_field)
+    return db_field
+
+
+@router.delete("/faction-template-fields/{field_id}", tags=["FactionTemplates"])
+def delete_faction_template_field(
+        field_id: int, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    db_field = _owned_faction_template_field(db, field_id, current_user)
+    db.delete(db_field)
+    db.commit()
+    return {"detail": "Поле видалено"}
+
+
+@router.put("/faction-templates/{template_id}/fields/reorder",
+            response_model=List[schemas.FactionTemplateFieldResponse], tags=["FactionTemplates"])
+def reorder_faction_template_fields(
+        template_id: int, payload: schemas.FactionTemplateFieldReorder, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    _owned_faction_template(db, template_id, current_user)
+    for index, field_id in enumerate(payload.field_ids):
+        db.query(models.FactionTemplateField).filter(
+            models.FactionTemplateField.id == field_id,
+            models.FactionTemplateField.template_id == template_id,
+        ).update({"order_index": index}, synchronize_session=False)
+    db.commit()
+    return (
+        db.query(models.FactionTemplateField)
+        .filter(models.FactionTemplateField.template_id == template_id)
+        .order_by(models.FactionTemplateField.order_index)
+        .all()
+    )
+
+
+@router.get("/factions/{faction_id}/custom-values", response_model=List[schemas.FactionFieldValueResponse],
+            tags=["FactionTemplates"])
+def get_faction_custom_values(
+        faction_id: int, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    _owned_faction(db, faction_id, current_user)
+    return db.query(models.FactionFieldValue).filter(models.FactionFieldValue.faction_id == faction_id).all()
+
+
+@router.put("/factions/{faction_id}/custom-values", response_model=List[schemas.FactionFieldValueResponse],
+            tags=["FactionTemplates"])
+def set_faction_custom_values(
+        faction_id: int, payload: schemas.FactionCustomValuesUpdate, db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_user),
+):
+    _owned_faction(db, faction_id, current_user)
+    for item in payload.values:
+        # Перевіряємо, що кожне поле справді належить шаблону поточного користувача
+        _owned_faction_template_field(db, item.field_id, current_user)
+        existing = db.query(models.FactionFieldValue).filter(
+            models.FactionFieldValue.faction_id == faction_id,
+            models.FactionFieldValue.field_id == item.field_id,
+        ).first()
+        if existing:
+            existing.value = item.value
+        else:
+            db.add(models.FactionFieldValue(faction_id=faction_id, field_id=item.field_id, value=item.value))
+    db.commit()
+    return db.query(models.FactionFieldValue).filter(models.FactionFieldValue.faction_id == faction_id).all()
+
 
 # ==========================================
 # 👤 ПЕРСОНАЖІ

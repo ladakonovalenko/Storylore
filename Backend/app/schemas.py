@@ -73,6 +73,7 @@ class FactionCreate(BaseModel):
     alignment:   Optional[str] = None
     leader:      Optional[str] = None
     image_url: Optional[str] = None
+    template_id: Optional[int] = None
 
 class FactionUpdate(BaseModel):
     name:        Optional[str] = None
@@ -81,6 +82,7 @@ class FactionUpdate(BaseModel):
     alignment:   Optional[str] = None
     leader:      Optional[str] = None
     image_url: Optional[str] = None
+    template_id: Optional[int] = None
 
 class FactionCharacterAssignment(BaseModel):
     character_ids: List[int] = []
@@ -94,6 +96,7 @@ class FactionResponse(BaseModel):
     alignment:   Optional[str] = None
     leader:      Optional[str] = None
     image_url: Optional[str] = None
+    template_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -786,3 +789,67 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+
+# --- Поле шаблону фракції ---
+class FactionTemplateFieldCreate(BaseModel):
+    label: str
+    field_type: Optional[str] = "textarea"
+    placeholder: Optional[str] = None
+
+
+class FactionTemplateFieldUpdate(BaseModel):
+    label: Optional[str] = None
+    field_type: Optional[str] = None
+    placeholder: Optional[str] = None
+
+
+class FactionTemplateFieldResponse(BaseModel):
+    id: int
+    template_id: int
+    label: str
+    field_type: str
+    placeholder: Optional[str] = None
+    order_index: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FactionTemplateFieldReorder(BaseModel):
+    field_ids: List[int]
+
+
+# --- Шаблон фракції ---
+class FactionTemplateCreate(BaseModel):
+    project_id: int
+    template_name: str
+    description: Optional[str] = None
+
+
+class FactionTemplateUpdate(BaseModel):
+    template_name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class FactionTemplateResponse(BaseModel):
+    id: int
+    project_id: int
+    template_name: str
+    description: Optional[str] = None
+    fields: List[FactionTemplateFieldResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- Значення власних полів конкретної фракції (EAV) ---
+class FactionFieldValueItem(BaseModel):
+    field_id: int
+    value: Optional[str] = None
+
+
+class FactionCustomValuesUpdate(BaseModel):
+    values: List[FactionFieldValueItem]
+
+
+class FactionFieldValueResponse(BaseModel):
+    field_id: int
+    value: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
