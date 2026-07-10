@@ -176,7 +176,7 @@ export default function CharactersPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <IdeaGenerator characters={characters} />
+            <IdeaGenerator characters={characters} projectId={activeProjectId} />
             <button
               onClick={() => setIsCreateOpen(true)}
               disabled={!activeProjectId}

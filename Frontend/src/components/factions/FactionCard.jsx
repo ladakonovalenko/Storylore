@@ -1,24 +1,41 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Shield, Edit3, Trash2, Check, Loader2, X, Users } from 'lucide-react'
 import InkStroke from '../layout/InkStroke'
 import LinkedText from '../common/LinkedText'
+import { getFactionCustomValues } from '../../api/factionTemplates'
 
-export default function FactionCard({ faction, characters = [], onEdit, onAssignCharacters, onDelete }) {
+export default function FactionCard({ faction, characters = [], template, onEdit, onAssignCharacters, onDelete }) {
   const name        = faction.name        || faction.title   || 'Без назви'
   const description = faction.description || faction.summary || ''
 
   const members = characters.filter((c) => c.faction_id === faction.id)
+  // НОВЕ: поля власного шаблону цієї фракції (якщо template передано з батька)
+  const templateFields = template?.fields ?? []
 
   const [editing, setEditing]     = useState(false)
   const [isSaving, setIsSaving]   = useState(false)
-  const [imgBroken, setImgBroken] = useState(false) // НОВЕ
+  const [imgBroken, setImgBroken] = useState(false)
+  const [customValues, setCustomValues] = useState({}) // { field_id: value } — для показу і редагування
+
+  // НОВЕ: підвантажуємо поточні значення власних полів (для показу в режимі перегляду)
+  useEffect(() => {
+    if (!faction.template_id) { setCustomValues({}); return }
+    getFactionCustomValues(faction.id)
+      .then((values) => {
+        const map = {}
+        values.forEach((v) => { map[v.field_id] = v.value ?? '' })
+        setCustomValues(map)
+      })
+      .catch(() => {})
+  }, [faction.id, faction.template_id])
+
   const [draft, setDraft]         = useState({
     name:        faction.name        || '',
     description: faction.description || '',
     type:        faction.type        || '',
     alignment:   faction.alignment   || '',
     leader:      faction.leader      || '',
-    image_url:   faction.image_url   || '', // НОВЕ
+    image_url:   faction.image_url   || '',
     characterIds: members.map((c) => c.id),
   })
 
@@ -29,7 +46,7 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
       type:        faction.type        || '',
       alignment:   faction.alignment   || '',
       leader:      faction.leader      || '',
-      image_url:   faction.image_url   || '', // НОВЕ
+      image_url:   faction.image_url   || '',
       characterIds: characters.filter((c) => c.faction_id === faction.id).map((c) => c.id),
     })
     setEditing(true)
@@ -44,6 +61,10 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
     }))
   }
 
+  const setCustomValue = (fieldId, value) => {
+    setCustomValues((prev) => ({ ...prev, [fieldId]: value }))
+  }
+
   const handleSave = async () => {
     if (!draft.name.trim()) return
     setIsSaving(true)
@@ -54,7 +75,13 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
         type:        draft.type.trim()        || undefined,
         alignment:   draft.alignment.trim()   || undefined,
         leader:      draft.leader.trim()      || undefined,
-        image_url:   draft.image_url.trim()   || undefined, // НОВЕ
+        image_url:   draft.image_url.trim()   || undefined,
+        // НОВЕ: значення власних полів шаблону — FactionsPage відокремить
+        // це поле й викличе setFactionCustomValues() окремим запитом
+        custom_values: templateFields.map((f) => ({
+          field_id: f.id,
+          value: customValues[f.id] ?? '',
+        })),
       })
       await onAssignCharacters?.(faction.id, draft.characterIds)
       setImgBroken(false)
@@ -81,7 +108,6 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
             className={inputCls} />
         </label>
 
-        {/* НОВЕ: зображення/герб */}
         <div className="flex flex-col gap-1">
           <label className="block text-xs text-parchment-dim">
             Посилання на зображення / герб
@@ -115,10 +141,37 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
             className={inputCls} />
         </label>
         <label className="block text-xs text-parchment-dim">
-          Лідер
-          <input value={draft.leader} onChange={(e) => setDraft((p) => ({ ...p, leader: e.target.value }))}
-            className={inputCls} />
+          Керівництво
+          <textarea value={draft.leader} rows={2}
+            onChange={(e) => setDraft((p) => ({ ...p, leader: e.target.value }))}
+            className={`${inputCls} resize-none`} />
         </label>
+
+        {/* НОВЕ: поля власного шаблону (тип шаблону змінити тут не можна —
+            лише значення полів того шаблону, з яким фракцію створено) */}
+        {templateFields.length > 0 && (
+          <div className="flex flex-col gap-3 rounded-md border border-ink-500 p-3">
+            <span className="text-xs font-medium uppercase tracking-widest text-parchment-dim/70">
+              Поля шаблону «{template.template_name}»
+            </span>
+            {templateFields.map((f) => (
+              <label key={f.id} className="block text-xs text-parchment-dim">
+                {f.label}
+                {f.field_type === 'textarea' ? (
+                  <textarea value={customValues[f.id] ?? ''} rows={2}
+                    onChange={(e) => setCustomValue(f.id, e.target.value)}
+                    placeholder={f.placeholder ?? ''}
+                    className={`${inputCls} resize-none`} />
+                ) : (
+                  <input value={customValues[f.id] ?? ''}
+                    onChange={(e) => setCustomValue(f.id, e.target.value)}
+                    placeholder={f.placeholder ?? ''}
+                    className={inputCls} />
+                )}
+              </label>
+            ))}
+          </div>
+        )}
 
         <div className="block text-xs text-parchment-dim">
           Персонажі фракції
@@ -172,7 +225,6 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
     <div className="group flex flex-col rounded-lg border border-ink-500 bg-ink-800 px-5 py-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-parchment-dim">
-          {/* НОВЕ: зображення/герб замість іконки, якщо є */}
           {faction.image_url && !imgBroken ? (
             <img
               src={faction.image_url} alt=""
@@ -222,9 +274,22 @@ export default function FactionCard({ faction, characters = [], onEdit, onAssign
         </p>
       )}
       {faction.leader && (
-        <p className="mt-1 text-xs text-parchment-dim">
-          Лідер: <span className="text-parchment">{faction.leader}</span>
+        <p className="mt-1 whitespace-pre-wrap text-xs text-parchment-dim">
+          Керівництво: <span className="text-parchment">{faction.leader}</span>
         </p>
+      )}
+
+      {/* НОВЕ: значення власних полів шаблону */}
+      {templateFields.length > 0 && (
+        <div className="mt-2 flex flex-col gap-1 border-t border-ink-600 pt-2">
+          {templateFields.map((f) => (
+            customValues[f.id] ? (
+              <p key={f.id} className="whitespace-pre-wrap text-xs text-parchment-dim">
+                {f.label}: <span className="text-parchment">{customValues[f.id]}</span>
+              </p>
+            ) : null
+          ))}
+        </div>
       )}
 
       <div className="mt-3 flex items-start gap-1.5 border-t border-ink-500 pt-3 text-xs text-parchment-dim">

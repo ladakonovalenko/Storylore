@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Sparkles, RefreshCw, Swords, Eye, Zap } from 'lucide-react'
+import { Sparkles, RefreshCw, Swords, Eye, Zap, BookmarkPlus, Check } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { createReminder } from '../../api/reminders'
 import Modal from '../common/Modal'
 
 // Словники-заготовки для генератора
@@ -78,12 +80,30 @@ function generateIdea(characters) {
   return { type: 'complication', text: pickRandom(COMPLICATIONS) }
 }
 
-export default function IdeaGenerator({ characters = [] }) {
+// НОВЕ: projectId — потрібен, щоб зберегти ідею в "Не забути" саме цього проєкту
+export default function IdeaGenerator({ characters = [], projectId }) {
   const [isOpen, setIsOpen] = useState(false)
   const [idea, setIdea] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
-  const reroll = () => setIdea(generateIdea(characters))
+  const reroll = () => { setIdea(generateIdea(characters)); setSaved(false) }
   const handleOpen = () => { reroll(); setIsOpen(true) }
+
+  // НОВЕ: зберегти поточну іскру ідеї в нагадування ("Не забути") для подальшого опрацювання
+  const handleSave = async () => {
+    if (!idea || !projectId) { toast.error('Спочатку оберіть активний проєкт'); return }
+    setIsSaving(true)
+    try {
+      await createReminder({ project_id: projectId, text: `💡 ${idea.text}` })
+      setSaved(true)
+      toast.success('Ідею збережено в «Не забути»')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const meta = idea ? TYPE_META[idea.type] : null
   const Icon = meta?.icon
@@ -112,6 +132,15 @@ export default function IdeaGenerator({ characters = [] }) {
                 className="rounded-md px-4 py-2 text-sm text-parchment-dim hover:bg-ink-700"
               >
                 Закрити
+              </button>
+              {/* НОВЕ: зберегти ідею в "Не забути" для подальшого опрацювання */}
+              <button
+                onClick={handleSave}
+                disabled={isSaving || saved}
+                className="flex items-center gap-2 rounded-md border border-ink-500 px-4 py-2 text-sm text-parchment hover:border-amber-ink hover:text-amber-soft disabled:opacity-60"
+              >
+                {saved ? <Check size={14} /> : <BookmarkPlus size={14} />}
+                {saved ? 'Збережено' : 'Зберегти'}
               </button>
               <button
                 onClick={reroll}

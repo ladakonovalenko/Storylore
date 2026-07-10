@@ -4,6 +4,7 @@ import { Plus, Shield, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getProjectFactions, createFaction, updateFaction, deleteFaction, setFactionCharacters } from '../api/factions'
 import { getCharacters } from '../api/characters'
+import { getProjectFactionTemplates, setFactionCustomValues } from '../api/factionTemplates'
 import { useProject } from '../context/ProjectContext'
 import FactionCard from '../components/factions/FactionCard'
 import CreateFactionForm from '../components/factions/CreateFactionForm'
@@ -14,32 +15,32 @@ import InkStroke from '../components/layout/InkStroke'
 
 export default function FactionsPage() {
   const { activeProject, activeProjectId } = useProject()
-  // НОВЕ: підтримка глобального пошуку — підсвітка картки через ?focus=<id>
   const [searchParams, setSearchParams] = useSearchParams()
   const [highlightedId, setHighlightedId] = useState(null)
 
   const [factions, setFactions]         = useState([])
-  // НОВЕ: персонажі проєкту — потрібні для мультивибору учасників фракції
   const [characters, setCharacters]     = useState([])
+  // НОВЕ: шаблони фракцій проєкту — потрібні, щоб FactionCard знав, які поля показувати
+  const [templates, setTemplates]       = useState([])
   const [isLoading, setIsLoading]       = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError]               = useState(null)
   const [isModalOpen, setIsModalOpen]   = useState(false)
 
-  // ── Стан для підтвердження видалення ──────────────────────────────────────
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: null, name: '' })
 
   const load = useCallback(async () => {
-    if (!activeProjectId) { setFactions([]); setCharacters([]); return }
+    if (!activeProjectId) { setFactions([]); setCharacters([]); setTemplates([]); return }
     setIsLoading(true); setError(null)
     try {
-      // НОВЕ: вантажимо фракції та персонажів проєкту паралельно
-      const [factionsData, charactersData] = await Promise.all([
+      const [factionsData, charactersData, templatesData] = await Promise.all([
         getProjectFactions(activeProjectId),
         getCharacters(activeProjectId),
+        getProjectFactionTemplates(activeProjectId),
       ])
       setFactions(factionsData)
       setCharacters(charactersData)
+      setTemplates(templatesData)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -49,7 +50,6 @@ export default function FactionsPage() {
 
   useEffect(() => { load() }, [load])
 
-  // НОВЕ: прокрутка до картки фракції та тимчасова підсвітка з глобального пошуку (?focus=<id>)
   useEffect(() => {
     const focusId = searchParams.get('focus')
     if (!focusId || factions.length === 0) return
@@ -68,8 +68,6 @@ export default function FactionsPage() {
     }, { replace: true })
   }, [searchParams, factions]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // НОВЕ: лише оновити список персонажів (після зміни складу фракції),
-  // без повторного завантаження самих фракцій
   const refreshCharacters = useCallback(async () => {
     if (!activeProjectId) return
     try {
@@ -83,16 +81,19 @@ export default function FactionsPage() {
   // ── Створення ──────────────────────────────────────────────────────────────
   const handleCreate = async (payload) => {
     if (!activeProjectId) { toast.error('Спочатку оберіть активний проєкт'); return }
-    // НОВЕ: відокремлюємо character_ids від полів самої фракції —
-    // бекенд create_faction не очікує цього поля
-    const { character_ids = [], ...factionPayload } = payload
+    // НОВЕ: відокремлюємо character_ids і custom_values від полів самої фракції —
+    // бекенд create_faction не очікує цих полів напряму
+    const { character_ids = [], custom_values = [], ...factionPayload } = payload
     setIsSubmitting(true)
     try {
       const newFaction = await createFaction({ ...factionPayload, project_id: activeProjectId })
-      // НОВЕ: якщо обрали персонажів — призначаємо їх одразу після створення фракції
       if (character_ids.length > 0) {
         await setFactionCharacters(newFaction.id, character_ids)
         await refreshCharacters()
+      }
+      // НОВЕ: якщо обрано шаблон і заповнено хоч якісь поля — зберігаємо їх окремим запитом
+      if (custom_values.length > 0) {
+        await setFactionCustomValues(newFaction.id, custom_values)
       }
       setFactions((prev) => [newFaction, ...prev])
       toast.success(`Фракцію «${newFaction.name}» створено`)
@@ -106,8 +107,13 @@ export default function FactionsPage() {
 
   // ── Редагування основних полів ──────────────────────────────────────────────
   const handleEdit = async (factionId, payload) => {
+    // НОВЕ: те саме відокремлення для редагування
+    const { custom_values, ...factionPayload } = payload
     try {
-      const updated = await updateFaction(factionId, payload)
+      const updated = await updateFaction(factionId, factionPayload)
+      if (custom_values && custom_values.length > 0) {
+        await setFactionCustomValues(factionId, custom_values)
+      }
       setFactions((prev) => prev.map((f) => f.id === factionId ? updated : f))
       toast.success(`Фракцію «${updated.name}» оновлено`)
     } catch (err) {
@@ -116,7 +122,6 @@ export default function FactionsPage() {
     }
   }
 
-  // НОВЕ: зміна складу персонажів фракції (виклик з FactionCard після збереження)
   const handleAssignCharacters = async (factionId, characterIds) => {
     try {
       await setFactionCharacters(factionId, characterIds)
@@ -127,20 +132,16 @@ export default function FactionsPage() {
     }
   }
 
-  // ── Видалення: відкрити діалог ─────────────────────────────────────────────
   const handleDeleteRequest = (factionId, factionName) => {
     setConfirmDelete({ isOpen: true, id: factionId, name: factionName })
   }
 
-  // ── Видалення: підтверджено ────────────────────────────────────────────────
   const handleDeleteConfirm = async () => {
     const { id, name } = confirmDelete
     setConfirmDelete({ isOpen: false, id: null, name: '' })
     try {
       await deleteFaction(id)
       setFactions((prev) => prev.filter((f) => f.id !== id))
-      // НОВЕ: персонажі, що були в цій фракції, лишаються в БД, але втрачають faction_id —
-      // оновлюємо локальний список, щоб не показувати застарілу прив'язку
       await refreshCharacters()
       toast.success(`Фракцію «${name}» видалено`)
     } catch (err) {
@@ -149,6 +150,10 @@ export default function FactionsPage() {
   }
 
   const projectTitle = activeProject?.title || activeProject?.name || null
+
+  // НОВЕ: знайти шаблон для конкретної фракції за її template_id
+  const findTemplate = (faction) =>
+    faction.template_id ? templates.find((t) => t.id === faction.template_id) : null
 
   return (
     <div>
@@ -230,6 +235,7 @@ export default function FactionsPage() {
                   <FactionCard
                     faction={faction}
                     characters={characters}
+                    template={findTemplate(faction)}
                     onEdit={handleEdit}
                     onAssignCharacters={handleAssignCharacters}
                     onDelete={handleDeleteRequest}
@@ -245,6 +251,7 @@ export default function FactionsPage() {
       <Modal title="Нова фракція" isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} maxWidth="max-w-lg">
         <CreateFactionForm
           characters={characters}
+          projectId={activeProjectId}
           onSubmit={handleCreate}
           onCancel={() => setIsModalOpen(false)}
           isSubmitting={isSubmitting}

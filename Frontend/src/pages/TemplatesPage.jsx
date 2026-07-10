@@ -7,6 +7,8 @@ import { useProject } from '../context/ProjectContext'
 import TemplateCard from '../components/templates/TemplateCard'
 import TemplateDetailModal from '../components/templates/TemplateDetailModal'
 import CustomTemplateManager from '../components/templates/CustomTemplateManager'
+import FactionTemplateManager from '../components/factions/FactionTemplateManager'
+import { getProjectFactionTemplates } from '../api/factionTemplates'
 import InkStroke from '../components/layout/InkStroke'
 
 export default function TemplatesPage() {
@@ -54,6 +56,26 @@ export default function TemplatesPage() {
   }, [activeProjectId])
 
   useEffect(() => { loadCustomTemplates() }, [loadCustomTemplates])
+
+  // НОВЕ: власні шаблони фракцій
+  const [factionTemplates, setFactionTemplates] = useState([])
+  const [isFactionLoading, setIsFactionLoading] = useState(false)
+  const [isFactionManagerOpen, setIsFactionManagerOpen] = useState(false)
+
+  const loadFactionTemplates = useCallback(async () => {
+    if (!activeProjectId) { setFactionTemplates([]); return }
+    setIsFactionLoading(true)
+    try {
+      const data = await getProjectFactionTemplates(activeProjectId)
+      setFactionTemplates(data)
+    } catch {
+      // мовчки ігноруємо — секція просто покаже порожній стан
+    } finally {
+      setIsFactionLoading(false)
+    }
+  }, [activeProjectId])
+
+  useEffect(() => { loadFactionTemplates() }, [loadFactionTemplates])
 
   return (
     <div>
@@ -128,6 +150,65 @@ export default function TemplatesPage() {
         </div>
       </div>
 
+      {/* НОВЕ: власні шаблони фракцій */}
+      <div className="mt-10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-xl font-medium text-parchment">Власні шаблони фракцій</h3>
+            <p className="mt-1 text-sm text-parchment-dim">
+              На відміну від персонажів, тут можна вигадати геть нові поля — «Магічна система»,
+              «Політичний устрій», «Легенди» тощо.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              if (!activeProjectId) return
+              setIsFactionManagerOpen(true)
+            }}
+            disabled={!activeProjectId}
+            className="flex shrink-0 items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft disabled:opacity-50"
+          >
+            <Settings size={15} /> Керувати шаблонами
+          </button>
+        </div>
+
+        <div className="mt-4">
+          {!activeProjectId ? (
+            <p className="text-sm text-parchment-dim">
+              Власні шаблони прив'язані до проєкту. Оберіть або створіть проєкт.
+            </p>
+          ) : isFactionLoading ? (
+            <div className="flex items-center gap-2 text-parchment-dim">
+              <Loader2 size={16} className="animate-spin" />
+              <span className="text-sm">Завантаження…</span>
+            </div>
+          ) : factionTemplates.length === 0 ? (
+            <div className="flex flex-col items-center rounded-lg border border-dashed border-ink-500 px-6 py-10 text-center">
+              <Sparkles size={24} strokeWidth={1.5} className="text-parchment-dim" />
+              <p className="mt-3 text-sm text-parchment-dim">
+                Власних шаблонів фракцій ще немає для цього проєкту.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {factionTemplates.map((template) => (
+                <div key={template.id}
+                  className="rounded-lg border border-ink-500 bg-ink-800 px-5 py-4"
+                >
+                  <p className="font-display text-base font-medium text-parchment">{template.template_name}</p>
+                  {template.description && (
+                    <p className="mt-1 line-clamp-2 text-sm text-parchment-dim">{template.description}</p>
+                  )}
+                  <span className="mt-3 inline-block rounded-full bg-ink-700 px-2 py-0.5 text-xs text-parchment-dim">
+                    {(template.fields ?? []).length} {(template.fields ?? []).length === 1 ? 'поле' : 'полів'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Вбудовані шаблони */}
       <div className="mt-10">
         <h3 className="font-display text-xl font-medium text-parchment">Вбудовані шаблони</h3>
@@ -167,6 +248,14 @@ export default function TemplatesPage() {
         projectId={activeProjectId}
         templates={customTemplates}
         onChange={setCustomTemplates}
+      />
+
+      <FactionTemplateManager
+        isOpen={isFactionManagerOpen}
+        onClose={() => setIsFactionManagerOpen(false)}
+        projectId={activeProjectId}
+        templates={factionTemplates}
+        onChange={setFactionTemplates}
       />
     </div>
   )

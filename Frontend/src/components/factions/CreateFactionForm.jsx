@@ -1,22 +1,52 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
+import { getProjectFactionTemplates } from '../../api/factionTemplates'
 
-export default function CreateFactionForm({ characters = [], onSubmit, onCancel, isSubmitting }) {
-  const [name, setName]               = useState('')
-  const [description, setDescription] = useState('')
-  const [type, setType]               = useState('')
-  const [alignment, setAlignment]     = useState('')
-  const [leader, setLeader]           = useState('')
-  const [imageUrl, setImageUrl]       = useState('') // НОВЕ
+export default function CreateFactionForm({ characters = [], projectId, initial, onSubmit, onCancel, isSubmitting }) {
+  const [name, setName]               = useState(initial?.name ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [type, setType]               = useState(initial?.type ?? '')
+  const [alignment, setAlignment]     = useState(initial?.alignment ?? '')
+  const [leader, setLeader]           = useState(initial?.leader ?? '')
+  const [imageUrl, setImageUrl]       = useState(initial?.image_url ?? '')
   const [characterIds, setCharacterIds] = useState([])
   const [touched, setTouched]         = useState(false)
 
+  // НОВЕ: власний шаблон фракції
+  const [templates, setTemplates] = useState([])
+  const [templatesLoading, setTemplatesLoading] = useState(true)
+  const [templateId, setTemplateId] = useState(initial?.template_id ?? '')
+  const [customValues, setCustomValues] = useState({}) // { field_id: value }
+
+  useEffect(() => {
+    if (!projectId) { setTemplatesLoading(false); return }
+    getProjectFactionTemplates(projectId)
+      .then(setTemplates)
+      .catch(() => {})
+      .finally(() => setTemplatesLoading(false))
+  }, [projectId])
+
+  // Якщо редагування й уже маємо initial.custom_values (масив {field_id, value}) — підставляємо
+  useEffect(() => {
+    if (initial?.custom_values) {
+      const map = {}
+      initial.custom_values.forEach((v) => { map[v.field_id] = v.value ?? '' })
+      setCustomValues(map)
+    }
+  }, [initial])
+
   const isNameEmpty = name.trim() === ''
+  const selectedTemplate = templates.find((t) => String(t.id) === String(templateId))
+  const templateFields = selectedTemplate?.fields ?? []
 
   const toggleCharacter = (id) => {
     setCharacterIds((prev) =>
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
     )
+  }
+
+  const setCustomValue = (fieldId, value) => {
+    setCustomValues((prev) => ({ ...prev, [fieldId]: value }))
   }
 
   const handleSubmit = (e) => {
@@ -30,8 +60,15 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
       type: type.trim() || undefined,
       alignment: alignment.trim() || undefined,
       leader: leader.trim() || undefined,
-      image_url: imageUrl.trim() || undefined, // НОВЕ
+      image_url: imageUrl.trim() || undefined,
+      template_id: templateId ? Number(templateId) : undefined,
       character_ids: characterIds,
+      // НОВЕ: значення власних полів шаблону — FactionsPage відокремить це
+      // поле й викличе setFactionCustomValues() окремим запитом після створення
+      custom_values: templateFields.map((f) => ({
+        field_id: f.id,
+        value: customValues[f.id] ?? '',
+      })),
     }
     onSubmit(payload)
   }
@@ -42,7 +79,7 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
     }`
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex max-h-[75vh] flex-col gap-4 overflow-y-auto pr-1">
       {/* Назва */}
       <label className="block text-sm text-parchment-dim">
         Назва фракції <span className="text-crimson-soft">*</span>
@@ -56,7 +93,7 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
         )}
       </label>
 
-      {/* НОВЕ: зображення/герб фракції */}
+      {/* Зображення/герб фракції */}
       <div className="flex flex-col gap-1">
         <label className="block text-sm text-parchment-dim">
           Посилання на зображення / герб (необов'язково)
@@ -106,15 +143,70 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
         />
       </label>
 
-      {/* Лідер */}
+      {/* Керівництво */}
       <label className="block text-sm text-parchment-dim">
-        Лідер (необов'язково)
-        <input
+        Керівництво (необов'язково)
+        <textarea
           value={leader} onChange={(e) => setLeader(e.target.value)}
-          placeholder="Ім'я лідера…"
-          className={inputCls()}
+          rows={2}
+          placeholder="Ім'я лідера, або опишіть форму влади: рада старійшин (7-12 осіб), тріумвірат тощо…"
+          className={`${inputCls()} resize-none`}
         />
       </label>
+
+      {/* НОВЕ: власний шаблон фракції */}
+      <div className="flex flex-col gap-1">
+        <label className="block text-sm text-parchment-dim">
+          Власний шаблон (необов'язково)
+          {templatesLoading ? (
+            <div className="mt-1 flex items-center gap-2 text-parchment-dim">
+              <Loader2 size={12} className="animate-spin" />
+              <span className="text-xs">Завантаження…</span>
+            </div>
+          ) : (
+            <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={inputCls()}>
+              <option value="">— без шаблону —</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.template_name}</option>
+              ))}
+            </select>
+          )}
+        </label>
+        {templates.length === 0 && !templatesLoading && (
+          <span className="text-xs text-parchment-dim/60">
+            Ще немає власних шаблонів фракцій — створіть їх у розділі «Шаблони».
+          </span>
+        )}
+      </div>
+
+      {/* НОВЕ: динамічні поля обраного шаблону */}
+      {templateFields.length > 0 && (
+        <fieldset className="flex flex-col gap-4 rounded-md border border-ink-500 p-3">
+          <legend className="px-1 text-xs font-medium uppercase tracking-widest text-parchment-dim/70">
+            Поля шаблону «{selectedTemplate.template_name}»
+          </legend>
+          {templateFields.map((f) => (
+            <label key={f.id} className="block text-sm text-parchment-dim">
+              {f.label}
+              {f.field_type === 'textarea' ? (
+                <textarea
+                  value={customValues[f.id] ?? ''}
+                  onChange={(e) => setCustomValue(f.id, e.target.value)}
+                  rows={3} placeholder={f.placeholder ?? ''}
+                  className={`${inputCls()} resize-none`}
+                />
+              ) : (
+                <input
+                  value={customValues[f.id] ?? ''}
+                  onChange={(e) => setCustomValue(f.id, e.target.value)}
+                  placeholder={f.placeholder ?? ''}
+                  className={inputCls()}
+                />
+              )}
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       {/* Персонажі-учасники */}
       <div className="block text-sm text-parchment-dim">
@@ -153,7 +245,7 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
       </div>
 
       {/* Кнопки */}
-      <div className="flex justify-end gap-2 border-t border-ink-500 pt-3">
+      <div className="sticky bottom-0 flex justify-end gap-2 border-t border-ink-500 bg-ink-800 pb-1 pt-3">
         <button type="button" onClick={onCancel}
           className="rounded-md px-4 py-2 text-sm text-parchment-dim hover:bg-ink-700">
           Скасувати
@@ -161,7 +253,7 @@ export default function CreateFactionForm({ characters = [], onSubmit, onCancel,
         <button type="submit" disabled={isSubmitting}
           className="flex items-center gap-2 rounded-md bg-amber-ink px-4 py-2 text-sm font-medium text-ink-900 hover:bg-amber-soft disabled:opacity-60">
           {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-          Створити фракцію
+          {initial ? 'Зберегти зміни' : 'Створити фракцію'}
         </button>
       </div>
     </form>
