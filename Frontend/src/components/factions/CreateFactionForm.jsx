@@ -21,7 +21,7 @@ export default function CreateFactionForm({ characters = [], projectId, initial,
   useEffect(() => {
     if (!projectId) { setTemplatesLoading(false); return }
     getProjectFactionTemplates(projectId)
-      .then(setTemplates)
+      .then((data) => setTemplates(Array.isArray(data) ? data : []))
       .catch(() => {})
       .finally(() => setTemplatesLoading(false))
   }, [projectId])

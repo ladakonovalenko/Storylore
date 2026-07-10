@@ -67,7 +67,7 @@ export default function TemplatesPage() {
     setIsFactionLoading(true)
     try {
       const data = await getProjectFactionTemplates(activeProjectId)
-      setFactionTemplates(data)
+      setFactionTemplates(Array.isArray(data) ? data : [])
     } catch {
       // мовчки ігноруємо — секція просто покаже порожній стан
     } finally {

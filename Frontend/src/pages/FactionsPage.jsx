@@ -33,18 +33,26 @@ export default function FactionsPage() {
     if (!activeProjectId) { setFactions([]); setCharacters([]); setTemplates([]); return }
     setIsLoading(true); setError(null)
     try {
-      const [factionsData, charactersData, templatesData] = await Promise.all([
+      const [factionsData, charactersData] = await Promise.all([
         getProjectFactions(activeProjectId),
         getCharacters(activeProjectId),
-        getProjectFactionTemplates(activeProjectId),
       ])
       setFactions(factionsData)
       setCharacters(charactersData)
-      setTemplates(templatesData)
     } catch (err) {
       setError(err.message)
     } finally {
       setIsLoading(false)
+    }
+
+    // ВИПРАВЛЕНО: шаблони фракцій завантажуються ОКРЕМО від основних даних —
+    // якщо цей запит впаде (напр. бекенд ще не оновлено), фракції й персонажі
+    // все одно завантажаться нормально, просто без прив'язки до шаблонів
+    try {
+      const templatesData = await getProjectFactionTemplates(activeProjectId)
+      setTemplates(Array.isArray(templatesData) ? templatesData : [])
+    } catch {
+      setTemplates([])
     }
   }, [activeProjectId])
 

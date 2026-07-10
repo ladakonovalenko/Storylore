@@ -23,7 +23,7 @@ export default function FactionCard({ faction, characters = [], template, onEdit
     getFactionCustomValues(faction.id)
       .then((values) => {
         const map = {}
-        values.forEach((v) => { map[v.field_id] = v.value ?? '' })
+        ;(Array.isArray(values) ? values : []).forEach((v) => { map[v.field_id] = v.value ?? '' })
         setCustomValues(map)
       })
       .catch(() => {})
