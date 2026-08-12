@@ -14,9 +14,18 @@ run_lightweight_migrations()
 
 app = FastAPI()
 
+# ВИПРАВЛЕНО: allow_origins=["*"] разом з allow_credentials=True — заборонена
+# CORS-специфікацією комбінація (браузери не приймають "будь-яке джерело" разом
+# з передачею токенів авторизації). Через це раніше сервер узагалі НЕ додавав
+# заголовок Access-Control-Allow-Origin — і запити з нового домену блокувались.
+# Тепер — явний список конкретних дозволених адрес.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Для тестів дозвольте все
+    allow_origins=[
+        "https://storylore-nine.vercel.app",  # старий Vercel-піддомен (лишаємо про всяк випадок)
+        "https://storyloreapp.com",           # новий власний домен
+        "https://www.storyloreapp.com",       # www-версія нового домену
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
